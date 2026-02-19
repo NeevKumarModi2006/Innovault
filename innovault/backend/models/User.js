@@ -20,6 +20,23 @@ const userSchema = new mongoose.Schema({
         required: true,
         minlength: 6
     },
+    role: {
+        type: String,
+        enum: ['VERIFIED', 'EXTERNAL', 'ADMIN'],
+        default: 'EXTERNAL'
+    },
+    profilePicture: {
+        type: String,
+        default: ''
+    },
+    bookmarks: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Project'
+    }],
+    bio: {
+        type: String,
+        default: ''
+    },
     createdAt: {
         type: Date,
         default: Date.now

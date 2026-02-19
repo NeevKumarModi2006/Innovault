@@ -1,61 +1,47 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../services/api';
+import { createContext, useState, useEffect, useContext } from 'react';
+import axios from 'axios';
 
-const AuthContext = createContext();
-
-export const useAuth = () => useContext(AuthContext);
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const checkLoggedIn = async () => {
-            const token = localStorage.getItem('auth-token');
+        const checkUserLoggedIn = async () => {
+            const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // Verify token and get user data (assuming an endpoint exists, or just decode if client-side only for now)
-                    // For now, we'll just assume valid if token exists and maybe decode it later or hit a /me endpoint
-                    // Let's implement a verify endpoint or just set a flag
-                    setUser({ token }); // In a real app, fetch user details here
-                } catch (error) {
-                    localStorage.removeItem('auth-token');
+                    const res = await axios.get('http://localhost:3000/api/auth/me', {
+                        headers: { 'auth-token': token }
+                    });
+                    setUser(res.data);
+                } catch (err) {
+                    localStorage.removeItem('token');
+                    setUser(null);
                 }
             }
             setLoading(false);
         };
-
-        checkLoggedIn();
+        checkUserLoggedIn();
     }, []);
 
-    const login = async (email, password) => {
-        const response = await api.post('/auth/login', { email, password });
-        const token = response.data;
-        localStorage.setItem('auth-token', token);
-        setUser({ token });
-        return token;
-    };
-
-    const register = async (username, email, password) => {
-        await api.post('/auth/register', { username, email, password });
+    const login = (token, userData) => {
+        localStorage.setItem('token', token);
+        setUser(userData);
     };
 
     const logout = () => {
-        localStorage.removeItem('auth-token');
+        localStorage.removeItem('token');
         setUser(null);
     };
 
-    const value = {
-        user,
-        login,
-        register,
-        logout,
-        loading
-    };
-
     return (
-        <AuthContext.Provider value={value}>
-            {!loading && children}
+        <AuthContext.Provider value={{ user, login, logout, loading }}>
+            {children}
         </AuthContext.Provider>
     );
+};
+export const useAuth = () => {
+    return useContext(AuthContext);
 };

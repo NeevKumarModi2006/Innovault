@@ -27,6 +27,9 @@ const projectRoutes = require('./routes/projects');
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 
+// Static Uploads
+app.use('/uploads', express.static('uploads'));
+
 app.get('/', (req, res) => {
     res.send('Innovault API is running...');
 });

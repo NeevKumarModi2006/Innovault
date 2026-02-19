@@ -16,15 +16,30 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // Determine Role based on Domain
+        const isNitw = email.toLowerCase().endsWith('@nitw.ac.in');
+        const role = isNitw ? 'VERIFIED' : 'EXTERNAL';
+
         // Create user
         const user = new User({
             username,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: role
         });
 
         const savedUser = await user.save();
-        res.send({ user: user._id });
+        res.send({ user: user._id, role: user.role });
+    } catch (err) {
+        res.status(400).send(err);
+    }
+});
+
+// Get Current User
+router.get('/me', require('../middleware/verifyToken'), async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.send(user);
     } catch (err) {
         res.status(400).send(err);
     }
