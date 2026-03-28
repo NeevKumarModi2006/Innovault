@@ -11,7 +11,11 @@ router.get('/', async (req, res) => {
         let query = { status: 'active' };
 
         if (search) {
-            query.$text = { $search: search };
+            query.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { shortDescription: { $regex: search, $options: 'i' } },
+                { techStack: { $regex: search, $options: 'i' } }
+            ];
         }
 
         if (techStack) {
@@ -66,17 +70,35 @@ router.get('/:id', async (req, res) => {
 });
 
 const upload = require('../middleware/upload');
+const rateLimit = require('express-rate-limit');
+
+// Strict Rate Limiting: Max 20 submits/edits per day per IP
+const projectSubmitLimiter = rateLimit({
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false, default: false },
+    message: { message: 'Daily limit of 20 project submissions/edits reached. Please try again tomorrow.' }
+});
 
 // POST Create Project (Verified Only)
-router.post('/', verify, upload.single('logo'), async (req, res) => {
+router.post('/', verify, projectSubmitLimiter, upload.single('logo'), async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
         if (user.role !== 'VERIFIED' && user.role !== 'ADMIN') {
             return res.status(403).json({ message: 'Only verified NITW users can post projects.' });
         }
 
+        // Parse techStack if it came as a comma-separated string from FormData
+        let parsedTechStack = req.body.techStack;
+        if (typeof parsedTechStack === 'string') {
+            parsedTechStack = parsedTechStack.split(',').map(t => t.trim()).filter(t => t);
+        }
+
         const project = new Project({
             ...req.body,
+            techStack: parsedTechStack,
             owner: req.user._id,
             logoUrl: req.file ? req.file.filename : 'default-logo.png'
         });
@@ -85,6 +107,62 @@ router.post('/', verify, upload.single('logo'), async (req, res) => {
         res.json(savedProject);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// PUT Edit Project
+router.put('/:id', verify, projectSubmitLimiter, upload.single('logo'), async (req, res) => {
+    try {
+        const project = await Project.findById(req.params.id);
+        if (!project) return res.status(404).json({ message: 'Project not found.' });
+
+        // Verify Owner
+        if (project.owner.toString() !== req.user._id) {
+            return res.status(403).json({ message: 'You are not authorized to edit this project.' });
+        }
+
+        // Parse techStack
+        let parsedTechStack = req.body.techStack;
+        if (typeof parsedTechStack === 'string') {
+            parsedTechStack = parsedTechStack.split(',').map(t => t.trim()).filter(t => t);
+        }
+
+        const updatedData = {
+            ...req.body,
+            techStack: parsedTechStack || project.techStack
+        };
+
+        if (req.file) {
+            updatedData.logoUrl = req.file.filename;
+        }
+
+        const updatedProject = await Project.findByIdAndUpdate(
+            req.params.id,
+            { $set: updatedData },
+            { new: true }
+        );
+
+        res.json(updatedProject);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// DELETE Project
+router.delete('/:id', verify, async (req, res) => {
+    try {
+        const project = await Project.findById(req.params.id);
+        if (!project) return res.status(404).json({ message: 'Project not found.' });
+
+        if (project.owner.toString() !== req.user._id) {
+            return res.status(403).json({ message: 'You are not authorized to delete this project.' });
+        }
+
+        await Project.findByIdAndDelete(req.params.id);
+        // Ideally we would also clean up Reviews, but deleting the project acts as a soft-cascade for UI since reviews query by projectId
+        res.json({ message: 'Project deleted successfully.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
@@ -137,6 +215,19 @@ router.post('/:id/reviews', verify, async (req, res) => {
         res.json(review);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// GET Bookmarked Projects
+router.get('/bookmarked/me', verify, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate({
+            path: 'bookmarks',
+            populate: { path: 'owner', select: 'username role profilePicture' }
+        });
+        res.json(user.bookmarks || []);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 

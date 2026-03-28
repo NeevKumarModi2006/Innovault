@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { ExternalLink, Github, Star, ShieldCheck, User as UserIcon, Bookmark } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const ProjectDetails = () => {
     const { id } = useParams();
@@ -24,7 +25,7 @@ const ProjectDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const projRes = await axios.get(`http://localhost:3000/api/projects/${id}`);
+                const projRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
                 setProject(projRes.data);
 
                 // Check bookmark status if user is logged in
@@ -34,7 +35,7 @@ const ProjectDetails = () => {
                 // For MVP, let's assume valid user context.
 
                 try {
-                    const revRes = await axios.get(`http://localhost:3000/api/projects/${id}/reviews`);
+                    const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
                     setReviews(revRes.data);
                 } catch (e) { console.log('Reviews fetch failed', e); }
             } catch (err) {
@@ -50,7 +51,7 @@ const ProjectDetails = () => {
         if (!user) return alert("Please login to bookmark");
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.put(`http://localhost:3000/api/projects/${id}/bookmark`, {}, {
+            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/bookmark`, {}, {
                 headers: { 'auth-token': token }
             });
             // Update local state
@@ -67,11 +68,11 @@ const ProjectDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const projRes = await axios.get(`http://localhost:3000/api/projects/${id}`);
+                const projRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
                 setProject(projRes.data);
 
                 try {
-                    const revRes = await axios.get(`http://localhost:3000/api/projects/${id}/reviews`);
+                    const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
                     setReviews(revRes.data);
                 } catch (e) { console.log('Reviews fetch failed', e); }
             } catch (err) {
@@ -89,13 +90,13 @@ const ProjectDetails = () => {
             const token = localStorage.getItem('token');
             if (!token) return alert('Please login to review');
 
-            await axios.post(`http://localhost:3000/api/projects/${id}/reviews`,
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`,
                 { rating, comment },
                 { headers: { 'auth-token': token } }
             );
 
             // Refresh reviews
-            const revRes = await axios.get(`http://localhost:3000/api/projects/${id}/reviews`);
+            const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
             setReviews(revRes.data);
             setComment('');
             setRating(5);
@@ -113,7 +114,7 @@ const ProjectDetails = () => {
             <div className="bg-dark-card rounded-2xl overflow-hidden border border-gray-800 shadow-2xl mb-8">
                 <div className="relative h-64 bg-gray-900">
                     <img
-                        src={project.logoUrl && project.logoUrl !== 'default-logo.png' ? `http://localhost:3000/uploads/${project.logoUrl}` : 'https://via.placeholder.com/1200x400/1e293b/475569?text=InnoVault+Project+Banner'}
+                        src={project.logoUrl && project.logoUrl !== 'default-logo.png' ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}` : 'https://via.placeholder.com/1200x400/1e293b/475569?text=InnoVault+Project+Banner'}
                         alt="Banner"
                         className="w-full h-full object-cover opacity-50 block"
                     />
@@ -158,9 +159,9 @@ const ProjectDetails = () => {
                     {/* Description */}
                     <div className="bg-dark-card p-8 rounded-xl border border-gray-800">
                         <h2 className="text-2xl font-bold text-white mb-4">About</h2>
-                        <div className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                        <ReactMarkdown className="prose prose-invert prose-p:text-gray-300 prose-headings:text-white max-w-none prose-a:text-primary hover:prose-a:text-primary-light">
                             {project.detailedDescription}
-                        </div>
+                        </ReactMarkdown>
                     </div>
 
                     {/* Reviews */}

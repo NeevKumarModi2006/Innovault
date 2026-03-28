@@ -12,8 +12,8 @@ const Home = () => {
         const fetchTrending = async () => {
             try {
                 // Fetch projects sorted by views or rating
-                const res = await axios.get('http://localhost:3000/api/projects?sort=rating');
-                setProjects(res.data.slice(0, 6)); // Show top 6
+                const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects?sort=rating');
+                setProjects(res.data.projects ? res.data.projects.slice(0, 6) : res.data.slice(0, 6)); // Safely handle pagination structure
             } catch (err) {
                 console.error(err);
             } finally {

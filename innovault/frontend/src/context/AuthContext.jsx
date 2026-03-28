@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    const res = await axios.get('http://localhost:3000/api/auth/me', {
+                    const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/auth/me', {
                         headers: { 'auth-token': token }
                     });
                     setUser(res.data);

@@ -11,15 +11,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust reverse proxy (e.g., localhost.run or Nginx) for rate-limiting
+app.set('trust proxy', true);
+
 // Security headers
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Gzip compress all responses
 app.use(compression());
 
-// CORS — origin from env for easy local <-> deployed switching
+// CORS — dynamically allow any origin (perfect for tunnels/presentation)
 app.use(cors({
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    origin: function (origin, callback) {
+        callback(null, true);
+    },
     credentials: true
 }));
 
@@ -31,6 +38,7 @@ const limiter = rateLimit({
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false, default: false },
     message: { message: 'Too many requests, please try again later.' }
 });
 app.use('/api', limiter);

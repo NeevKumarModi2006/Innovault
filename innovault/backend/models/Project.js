@@ -27,7 +27,6 @@ const projectSchema = new mongoose.Schema({
     },
     deploymentLink: {
         type: String,
-        required: true,
         trim: true
     },
     sourceLink: {

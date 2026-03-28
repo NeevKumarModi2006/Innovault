@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { Upload, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Upload } from 'lucide-react';
 
-const SubmitProject = () => {
+const EditProject = () => {
+    const { id } = useParams();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         title: '',
@@ -11,11 +12,36 @@ const SubmitProject = () => {
         detailedDescription: '',
         deploymentLink: '',
         sourceLink: '',
-        techStack: '' // Comma separated string for input
+        techStack: '' 
     });
     const [logo, setLogo] = useState(null);
+    const [existingLogo, setExistingLogo] = useState('');
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchProject = async () => {
+            try {
+                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
+                const data = res.data;
+                setFormData({
+                    title: data.title,
+                    shortDescription: data.shortDescription,
+                    detailedDescription: data.detailedDescription,
+                    deploymentLink: data.deploymentLink || '',
+                    sourceLink: data.sourceLink || '',
+                    techStack: data.techStack.join(', ')
+                });
+                setExistingLogo(data.logoUrl);
+            } catch (err) {
+                setError('Failed to load project details.');
+            } finally {
+                setFetching(false);
+            }
+        };
+        fetchProject();
+    }, [id]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -39,21 +65,19 @@ const SubmitProject = () => {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('You must be logged in.');
 
-            // Build FormData payload to support file upload
             const payload = new FormData();
             payload.append('title', formData.title);
             payload.append('shortDescription', formData.shortDescription);
             payload.append('detailedDescription', formData.detailedDescription);
             payload.append('deploymentLink', formData.deploymentLink);
             payload.append('sourceLink', formData.sourceLink);
-            payload.append('techStack', formData.techStack); // Send as comma-separated string
+            payload.append('techStack', formData.techStack);
             
             if (logo) {
                 payload.append('logo', logo);
             }
 
-            // Axios automatically sets Content-Type: multipart/form-data when passing a FormData object
-            await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects', payload, {
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`, payload, {
                 headers: { 'auth-token': token }
             });
 
@@ -65,12 +89,34 @@ const SubmitProject = () => {
         }
     };
 
-    return (
-        <div className="pt-24 min-h-screen px-4 max-w-3xl mx-auto">
-            <h1 className="text-3xl font-bold text-white mb-2">Submit a Project</h1>
-            <p className="text-gray-400 mb-8">Share your specialized tool with the NITW community.</p>
+    const handleDelete = async () => {
+        if (window.confirm("Are you absolutely sure you want to permanently delete this project?")) {
+            try {
+                const token = localStorage.getItem('token');
+                setLoading(true);
+                await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`, {
+                    headers: { 'auth-token': token }
+                });
+                navigate('/dashboard');
+            } catch (err) {
+                setError(err.response?.data?.message || err.message);
+                setLoading(false);
+            }
+        }
+    };
 
-            <form onSubmit={handleSubmit} className="space-y-6 bg-dark-card p-8 rounded-xl border border-gray-800">
+    if (fetching) return <div className="pt-24 min-h-screen text-center text-white">Loading project data...</div>;
+
+    return (
+        <div className="pt-24 min-h-screen px-4 max-w-3xl mx-auto pb-20">
+            <h1 className="text-3xl font-bold text-white mb-2">Edit Project</h1>
+            <p className="text-gray-400 mb-8">Update your project details below.</p>
+
+            <form onSubmit={handleSubmit} className="space-y-6 bg-dark-card p-8 rounded-xl border border-gray-800 relative">
+                <button type="button" onClick={handleDelete} className="absolute top-8 right-8 text-red-500 hover:text-red-400 text-sm font-medium underline">
+                    Delete Project
+                </button>
+
                 {error && <div className="text-red-500 bg-red-900/20 p-3 rounded">{error}</div>}
 
                 <div>
@@ -108,20 +154,27 @@ const SubmitProject = () => {
                 <p className="text-xs text-gray-500 mt-2">* At least one link (Deployment or Source Code) is required.</p>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Project Logo</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Update Project Logo (Optional)</label>
                     <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
                         <input type="file" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="logo-upload" accept="image/*" />
-                        <div className="pointer-events-none">
-                            <Upload className="mx-auto h-12 w-12 text-gray-500" />
-                            <p className="mt-2 text-sm text-gray-400">{logo ? logo.name : "Click to upload or drag and drop"}</p>
+                        <div className="pointer-events-none flex flex-col items-center">
+                            {existingLogo && !logo ? (
+                                <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${existingLogo}`} alt="Current Logo" className="w-16 h-16 rounded mb-2 border border-gray-600 object-cover" />
+                            ) : (
+                                <Upload className="mx-auto h-12 w-12 text-gray-500" />
+                            )}
+                            <p className="mt-2 text-sm text-gray-400">{logo ? logo.name : "Click to upload a new logo"}</p>
                             <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="pt-4">
-                    <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-primary/50 disabled:opacity-50">
-                        {loading ? 'Submitting...' : 'Launch Project'}
+                    <button type="submit" disabled={loading} className="w-full bg-secondary hover:bg-secondary/80 text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-secondary/50 disabled:opacity-50">
+                        {loading ? 'Updating...' : 'Save Changes'}
+                    </button>
+                    <button type="button" onClick={() => navigate('/dashboard')} className="w-full mt-3 bg-transparent border border-gray-600 hover:bg-gray-800 text-gray-300 font-bold py-3 px-4 rounded-lg transition-all">
+                        Cancel
                     </button>
                 </div>
             </form>
@@ -129,4 +182,4 @@ const SubmitProject = () => {
     );
 };
 
-export default SubmitProject;
+export default EditProject;

@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Explore from './pages/Explore';
 import SubmitProject from './pages/SubmitProject';
+import EditProject from './pages/EditProject';
 import ProjectDetails from './pages/ProjectDetails';
 
 const ProtectedRoute = ({ children }) => {
@@ -43,6 +44,14 @@ function App() {
                                 element={
                                     <ProtectedRoute>
                                         <SubmitProject />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/edit/:id"
+                                element={
+                                    <ProtectedRoute>
+                                        <EditProject />
                                     </ProtectedRoute>
                                 }
                             />

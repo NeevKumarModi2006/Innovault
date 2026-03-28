@@ -8,7 +8,7 @@ const ProjectCard = ({ project }) => {
             <div className="bg-dark-card rounded-xl overflow-hidden border border-gray-800 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 h-full flex flex-col">
                 <div className="relative h-48 overflow-hidden bg-gray-900">
                     <img
-                        src={project.logoUrl && project.logoUrl !== 'default-logo.png' ? `http://localhost:3000/uploads/${project.logoUrl}` : 'https://via.placeholder.com/400x300/1e293b/475569?text=InnoVault'}
+                        src={project.logoUrl && project.logoUrl !== 'default-logo.png' ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}` : 'https://via.placeholder.com/400x300/1e293b/475569?text=InnoVault'}
                         alt={project.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

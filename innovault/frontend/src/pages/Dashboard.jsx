@@ -8,29 +8,28 @@ import { Plus } from 'lucide-react';
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
     const [myProjects, setMyProjects] = useState([]);
+    const [bookmarkedProjects, setBookmarkedProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchMyProjects = async () => {
-            // Since I don't have a specific endpoint for "my projects", I'll use the search API and filter client side 
-            // OR better, create an endpoint. 
-            // But for now, let's just filter locally or assume I can search by owner? 
-            // My backend search API doesn't support owner filtering yet.
-            // I'll add a quick fix: fetch all and filter (inefficient but works for MVP) or assumes I add backend support.
-            // Wait, I can't easily fetch ALL projects if there are many.
-            // Let's rely on the fact that for MVP there won't be many.
-            // Or better: Update backend `projects.js` to support `owner` query param.
-            // I will try to fetch with `?owner=UserId` if I update backend, but I won't update backend now to avoid context switch unless necessary.
-            // Actually, the `GET /` route in `projects.js` uses `req.query` for search/techStack.
-            // I'll just trust that I can add a filter there easily.
-
-            // Let's try sending a query. If it doesn't work, I'll update backend.
-            // Actually, let's just update the backend logic real quick? No, let's keep it simple.
-            // I will fetch all and filter match `project.owner._id === user._id`.
+        const fetchDashboardData = async () => {
             try {
-                const res = await axios.get('http://localhost:3000/api/projects?sort=createdAt');
-                const userProjects = res.data.filter(p => p.owner?._id === user._id || p.owner === user._id);
-                setMyProjects(userProjects);
+                const token = localStorage.getItem('token');
+                
+                // Fetch All for myProjects (temporary MVP logic)
+                const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects?sort=createdAt');
+                const userProjects = res.data.projects ? res.data.projects.filter(p => p.owner?._id === user._id || p.owner === user._id) : 
+                                     res.data.filter(p => p.owner?._id === user._id || p.owner === user._id);
+                setMyProjects(userProjects || []);
+
+                // Fetch Bookmarks
+                if (token) {
+                    const bmRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects/bookmarked/me', {
+                        headers: { 'auth-token': token }
+                    });
+                    setBookmarkedProjects(bmRes.data);
+                }
+
             } catch (err) {
                 console.error(err);
             } finally {
@@ -38,7 +37,7 @@ const Dashboard = () => {
             }
         };
 
-        if (user) fetchMyProjects();
+        if (user) fetchDashboardData();
     }, [user]);
 
     return (
@@ -46,7 +45,7 @@ const Dashboard = () => {
             <div className="flex justify-between items-center mb-8 bg-dark-card p-6 rounded-xl border border-gray-800">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-primary/30">
-                        {user?.username?.[0]?.toUpperCase()}
+                        {user?.username?.[0]?.toUpperCase() || 'U'}
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-white mb-1">Welcome back, {user?.username}</h1>
@@ -60,24 +59,50 @@ const Dashboard = () => {
                 )}
             </div>
 
+            {/* My Projects Section */}
             <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-secondary pl-4">My Projects</h2>
-
+            
             {loading ? (
                 <div className="text-center py-20 text-gray-500">Loading your vault...</div>
             ) : myProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                     {myProjects.map(project => (
-                        <ProjectCard key={project._id} project={project} />
+                        <div key={project._id} className="flex flex-col">
+                            <ProjectCard project={project} />
+                            <Link to={`/edit/${project._id}`} className="mt-3 text-center w-full py-2 bg-dark-input border border-gray-700 hover:border-gray-500 rounded text-sm font-medium text-gray-300 transition-colors">
+                                Edit Project
+                            </Link>
+                        </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-20 bg-dark-card rounded-xl border border-dashed border-gray-700">
+                <div className="text-center py-20 mb-12 bg-dark-card rounded-xl border border-dashed border-gray-700">
                     <p className="text-gray-400 mb-4">You haven't submitted any projects yet.</p>
                     {user?.role === 'VERIFIED' ? (
                         <Link to="/submit" className="text-primary font-medium hover:underline">Submit one now</Link>
                     ) : (
                         <p className="text-sm text-gray-500">Only verified NITW users can submit projects.</p>
                     )}
+                </div>
+            )}
+
+            {/* Bookmarked Projects Section */}
+            <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-primary pl-4">Saved Bookmarks</h2>
+            
+            {loading ? (
+                <div className="text-center py-20 text-gray-500">Retrieving bookmarks...</div>
+            ) : bookmarkedProjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                    {bookmarkedProjects.map(project => (
+                        <ProjectCard key={project._id} project={project} />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-20 pb-20 bg-dark-card rounded-xl border border-dashed border-gray-800">
+                    <p className="text-gray-500 mb-4">You haven't bookmarked any projects.</p>
+                    <Link to="/explore" className="text-primary font-medium hover:underline flex items-center justify-center gap-1">
+                        Start Exploring
+                    </Link>
                 </div>
             )}
         </div>
