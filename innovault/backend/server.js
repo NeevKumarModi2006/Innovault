@@ -2,21 +2,41 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Security headers
+app.use(helmet());
+
+// Gzip compress all responses
+app.use(compression());
+
+// CORS — origin from env for easy local <-> deployed switching
+app.use(cors({
+    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    credentials: true
+}));
+
 app.use(express.json());
-app.use(cors());
+
+// Rate limiting — 100 requests per IP per 15 minutes
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests, please try again later.' }
+});
+app.use('/api', limiter);
 
 // Database Connection
-mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/innovault', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
+mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/innovault')
     .then(() => console.log('Connected to Innovault Database'))
     .catch(err => console.error('Database connection failed:', err));
 

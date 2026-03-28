@@ -53,7 +53,7 @@ const projectSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    // Cached Ratings (Updated via hook or cron)
+    // Cached Ratings (updated via aggregation on review post)
     averageRating: {
         type: Number,
         default: 0
@@ -68,8 +68,14 @@ const projectSchema = new mongoose.Schema({
     }
 });
 
-// Index for search
+// Full-text search index
 projectSchema.index({ title: 'text', shortDescription: 'text', detailedDescription: 'text' });
 
+// Compound indexes for all sort + filter patterns used in GET /projects
+projectSchema.index({ status: 1, createdAt: -1 });       // default sort
+projectSchema.index({ status: 1, averageRating: -1 });   // sort=rating
+projectSchema.index({ status: 1, views: -1 });           // sort=views
+projectSchema.index({ techStack: 1 });                    // techStack filter
 
 module.exports = mongoose.model('Project', projectSchema);
+

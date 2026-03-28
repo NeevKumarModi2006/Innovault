@@ -4,10 +4,10 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const verify = require('../middleware/verifyToken');
 
-// GET All Projects (Search & Filter)
+// GET All Projects — Paginated, Filtered, Sorted
 router.get('/', async (req, res) => {
     try {
-        const { search, techStack, sort } = req.query;
+        const { search, techStack, sort, page = 1, limit = 20 } = req.query;
         let query = { status: 'active' };
 
         if (search) {
@@ -15,34 +15,49 @@ router.get('/', async (req, res) => {
         }
 
         if (techStack) {
-            query.techStack = { $in: techStack.split(',') };
+            query.techStack = { $in: techStack.split(',').map(t => t.trim()) };
         }
 
-        let sortOption = { createdAt: -1 }; // Default: Newest
+        let sortOption = { createdAt: -1 };
         if (sort === 'rating') sortOption = { averageRating: -1 };
         if (sort === 'views') sortOption = { views: -1 };
 
-        const projects = await Project.find(query)
-            .populate('owner', 'username role profilePicture')
-            .sort(sortOption);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const total = await Project.countDocuments(query);
 
-        res.json(projects);
+        // Projection: omit large detailedDescription field on list view
+        const projects = await Project.find(query)
+            .select('-detailedDescription')
+            .populate('owner', 'username role profilePicture')
+            .sort(sortOption)
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        res.json({
+            projects,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
-// GET Single Project
+// GET Single Project (full fields)
 router.get('/:id', async (req, res) => {
     try {
-        const project = await Project.findById(req.params.id)
-            .populate('owner', 'username role profilePicture bio');
-        
-        if (!project) return res.status(404).json({ message: 'Project not found' });
+        // Atomic view increment — no full document read+write
+        const project = await Project.findByIdAndUpdate(
+            req.params.id,
+            { $inc: { views: 1 } },
+            { new: true }
+        ).populate('owner', 'username role profilePicture bio');
 
-        // Increment Views (Basic implementation)
-        project.views += 1;
-        await project.save();
+        if (!project) return res.status(404).json({ message: 'Project not found' });
 
         res.json(project);
     } catch (err) {
@@ -80,11 +95,9 @@ router.post('/:id/reviews', verify, async (req, res) => {
         const projectId = req.params.id;
         const userId = req.user._id;
 
-        // Check if user already reviewed
         const existingReview = await Review.findOne({ user: userId, project: projectId });
         if (existingReview) return res.status(400).json({ message: 'You have already reviewed this project.' });
 
-        // Get User Role for Dual Rating
         const user = await User.findById(userId);
         const isVerifiedRating = user.role === 'VERIFIED';
 
@@ -149,11 +162,9 @@ router.put('/:id/bookmark', verify, async (req, res) => {
         const index = user.bookmarks.indexOf(projectId);
 
         if (index === -1) {
-            // Add bookmark
             user.bookmarks.push(projectId);
             await Project.findByIdAndUpdate(projectId, { $inc: { bookmarksCount: 1 } });
         } else {
-            // Remove bookmark
             user.bookmarks.splice(index, 1);
             await Project.findByIdAndUpdate(projectId, { $inc: { bookmarksCount: -1 } });
         }

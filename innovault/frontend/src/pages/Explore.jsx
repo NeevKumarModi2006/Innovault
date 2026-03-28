@@ -1,37 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import api from '../services/api';
 import ProjectCard from '../components/ProjectCard';
 import { Search, Filter } from 'lucide-react';
+
+const LIMIT = 20;
 
 const Explore = () => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [search, setSearch] = useState('');
     const [filterStack, setFilterStack] = useState('');
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const debounceRef = useRef(null);
 
-    useEffect(() => {
-        fetchProjects();
-    }, []);
+    const fetchProjects = useCallback(async (searchVal, stackVal, pageNum, replace = false) => {
+        if (replace) setLoading(true);
+        else setLoadingMore(true);
 
-    const fetchProjects = async (offerSearch = '', offerStack = '') => {
-        setLoading(true);
         try {
-            let query = `?sort=createdAt`;
-            if (offerSearch) query += `&search=${offerSearch}`;
-            if (offerStack) query += `&techStack=${offerStack}`;
+            let query = `?limit=${LIMIT}&page=${pageNum}`;
+            if (searchVal) query += `&search=${encodeURIComponent(searchVal)}`;
+            if (stackVal)  query += `&techStack=${encodeURIComponent(stackVal)}`;
 
-            const res = await axios.get(`http://localhost:3000/api/projects${query}`);
-            setProjects(res.data);
+            const res = await api.get(`/api/projects${query}`);
+            const { projects: newProjects, pagination } = res.data;
+
+            setProjects(prev => replace ? newProjects : [...prev, ...newProjects]);
+            setTotalPages(pagination.totalPages);
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
+    }, []);
+
+    // Initial load
+    useEffect(() => {
+        fetchProjects('', '', 1, true);
+    }, [fetchProjects]);
+
+    // Debounced search — fires 400ms after user stops typing
+    const handleSearchChange = (e) => {
+        const val = e.target.value;
+        setSearch(val);
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setPage(1);
+            fetchProjects(val, filterStack, 1, true);
+        }, 400);
+    };
+
+    const handleApplyFilters = () => {
+        setPage(1);
+        fetchProjects(search, filterStack, 1, true);
+    };
+
+    const handleLoadMore = () => {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchProjects(search, filterStack, nextPage, false);
     };
 
     const handleSearch = (e) => {
         e.preventDefault();
-        fetchProjects(search, filterStack);
+        setPage(1);
+        fetchProjects(search, filterStack, 1, true);
     };
 
     return (
@@ -56,7 +92,7 @@ const Explore = () => {
                         </div>
 
                         <button
-                            onClick={() => fetchProjects(search, filterStack)}
+                            onClick={handleApplyFilters}
                             className="w-full bg-secondary hover:bg-pink-600 text-white py-2 rounded font-medium text-sm transition-colors"
                         >
                             Apply Filters
@@ -74,7 +110,7 @@ const Explore = () => {
                             placeholder="Search projects by title, description, or tech..."
                             className="w-full bg-dark-card border border-gray-800 rounded-xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-lg"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={handleSearchChange}
                         />
                     </form>
 
@@ -96,6 +132,17 @@ const Explore = () => {
                                     <p className="text-gray-400">No projects found matching your criteria.</p>
                                 </div>
                             )}
+                            {page < totalPages && (
+                                <div className="flex justify-center mt-10">
+                                    <button
+                                        onClick={handleLoadMore}
+                                        disabled={loadingMore}
+                                        className="px-8 py-3 bg-primary hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        {loadingMore ? 'Loading...' : 'Load More'}
+                                    </button>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -105,3 +152,4 @@ const Explore = () => {
 };
 
 export default Explore;
+
