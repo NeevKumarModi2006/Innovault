@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Upload } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const EditProject = () => {
     useEffect(() => {
         const fetchProject = async () => {
             try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
+                const res = await api.get(`/api/projects/${id}`);
                 const data = res.data;
                 setFormData({
                     title: data.title,
@@ -77,9 +77,7 @@ const EditProject = () => {
                 payload.append('logo', logo);
             }
 
-            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`, payload, {
-                headers: { 'auth-token': token }
-            });
+            await api.put(`/api/projects/${id}`, payload);
 
             navigate('/dashboard');
         } catch (err) {
@@ -94,9 +92,7 @@ const EditProject = () => {
             try {
                 const token = localStorage.getItem('token');
                 setLoading(true);
-                await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`, {
-                    headers: { 'auth-token': token }
-                });
+                await api.delete(`/api/projects/${id}`);
                 navigate('/dashboard');
             } catch (err) {
                 setError(err.response?.data?.message || err.message);

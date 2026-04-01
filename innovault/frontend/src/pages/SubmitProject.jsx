@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
 
@@ -52,10 +52,8 @@ const SubmitProject = () => {
                 payload.append('logo', logo);
             }
 
-            // Axios automatically sets Content-Type: multipart/form-data when passing a FormData object
-            await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects', payload, {
-                headers: { 'auth-token': token }
-            });
+            // Use the fetch wrapper, which auto-attaches tokens and correctly handles FormData
+            await api.post('/api/projects', payload);
 
             navigate('/dashboard');
         } catch (err) {

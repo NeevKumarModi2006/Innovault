@@ -1,9 +1,30 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { ExternalLink, Github, Star, ShieldCheck, User as UserIcon, Bookmark } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
+class MarkdownErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="text-red-500 bg-red-900/20 p-4 rounded-xl font-mono text-sm overflow-auto">
+                    <p><b>Markdown Render Error:</b> {this.state.error && this.state.error.message}</p>
+                    <pre>{this.state.error && this.state.error.stack}</pre>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 const ProjectDetails = () => {
     const { id } = useParams();
@@ -25,7 +46,7 @@ const ProjectDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const projRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
+                const projRes = await api.get(`/api/projects/${id}`);
                 setProject(projRes.data);
 
                 // Check bookmark status if user is logged in
@@ -35,7 +56,7 @@ const ProjectDetails = () => {
                 // For MVP, let's assume valid user context.
 
                 try {
-                    const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
+                    const revRes = await api.get(`/api/projects/${id}/reviews`);
                     setReviews(revRes.data);
                 } catch (e) { console.log('Reviews fetch failed', e); }
             } catch (err) {
@@ -51,9 +72,7 @@ const ProjectDetails = () => {
         if (!user) return alert("Please login to bookmark");
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/bookmark`, {}, {
-                headers: { 'auth-token': token }
-            });
+            const res = await api.put(`/api/projects/${id}/bookmark`);
             // Update local state
             // API returns updated bookmarks array
             setIsBookmarked(res.data.includes(id));
@@ -68,11 +87,11 @@ const ProjectDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const projRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}`);
+                const projRes = await api.get(`/api/projects/${id}`);
                 setProject(projRes.data);
 
                 try {
-                    const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
+                    const revRes = await api.get(`/api/projects/${id}/reviews`);
                     setReviews(revRes.data);
                 } catch (e) { console.log('Reviews fetch failed', e); }
             } catch (err) {
@@ -90,13 +109,10 @@ const ProjectDetails = () => {
             const token = localStorage.getItem('token');
             if (!token) return alert('Please login to review');
 
-            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`,
-                { rating, comment },
-                { headers: { 'auth-token': token } }
-            );
+            await api.post(`/api/projects/${id}/reviews`, { rating, comment });
 
             // Refresh reviews
-            const revRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/projects/${id}/reviews`);
+            const revRes = await api.get(`/api/projects/${id}/reviews`);
             setReviews(revRes.data);
             setComment('');
             setRating(5);
@@ -159,9 +175,13 @@ const ProjectDetails = () => {
                     {/* Description */}
                     <div className="bg-dark-card p-8 rounded-xl border border-gray-800">
                         <h2 className="text-2xl font-bold text-white mb-4">About</h2>
-                        <ReactMarkdown className="prose prose-invert prose-p:text-gray-300 prose-headings:text-white max-w-none prose-a:text-primary hover:prose-a:text-primary-light">
-                            {project.detailedDescription}
-                        </ReactMarkdown>
+                        <MarkdownErrorBoundary>
+                            <div className="prose prose-invert prose-p:text-gray-300 prose-headings:text-white max-w-none prose-a:text-primary hover:prose-a:text-primary-light">
+                                <ReactMarkdown>
+                                    {typeof project.detailedDescription === 'string' ? project.detailedDescription : '*No detailed description provided.*'}
+                                </ReactMarkdown>
+                            </div>
+                        </MarkdownErrorBoundary>
                     </div>
 
                     {/* Reviews */}

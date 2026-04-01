@@ -8,10 +8,10 @@ Navigate to `innovault/frontend` and run:
 
 ```bash
 npm install
-npm install react react-dom react-router-dom framer-motion lucide-react axios
+npm install react react-dom react-router-dom framer-motion lucide-react 
 npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
 ```
-
+<!-- axios was removed  -->
 ## Backend (`./innovault/backend`)
 
 Navigate to `innovault/backend` and run:

@@ -20,7 +20,7 @@ React, TailwindCSS, Vite, Node.js, Express, MongoDB, JWT, Nodemailer
 `http://localhost:5173`
 
 ### **Source Link (GitHub)**
-`https://github.com/NeevKumarModi2006/Innnovault`
+`https://github.com/NeevKumarModi2006/Innovault`
 
 ### **Detailed Description (Markdown)**
 *(Copy and paste the entire block below into the rich text/markdown editor)*

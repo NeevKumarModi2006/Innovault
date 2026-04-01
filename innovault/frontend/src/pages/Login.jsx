@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { Lock, Mail } from 'lucide-react';
 
@@ -14,15 +14,13 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/auth/login', { email, password });
+            const res = await api.post('/api/auth/login', { email, password });
+            
+            // Immediately use the token to fetch full user info 
+            localStorage.setItem('token', res.data);
+            const userRes = await api.get('/api/auth/me');
 
-            // Fetch User details after getting token
-            const token = res.data;
-            const userRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/auth/me', {
-                headers: { 'auth-token': token }
-            });
-
-            login(token, userRes.data);
+            login(res.data, userRes.data);
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed. Check credentials.');

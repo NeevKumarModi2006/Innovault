@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import ProjectCard from '../components/ProjectCard';
 import { ArrowRight, Zap } from 'lucide-react';
 
@@ -12,7 +12,7 @@ const Home = () => {
         const fetchTrending = async () => {
             try {
                 // Fetch projects sorted by views or rating
-                const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects?sort=rating');
+                const res = await api.get('/api/projects?sort=rating');
                 setProjects(res.data.projects ? res.data.projects.slice(0, 6) : res.data.slice(0, 6)); // Safely handle pagination structure
             } catch (err) {
                 console.error(err);

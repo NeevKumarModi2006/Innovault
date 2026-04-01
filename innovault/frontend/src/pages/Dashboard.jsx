@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import ProjectCard from '../components/ProjectCard';
 import { Link } from 'react-router-dom';
@@ -17,16 +17,14 @@ const Dashboard = () => {
                 const token = localStorage.getItem('token');
                 
                 // Fetch All for myProjects (temporary MVP logic)
-                const res = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects?sort=createdAt');
+                const res = await api.get('/api/projects?sort=createdAt');
                 const userProjects = res.data.projects ? res.data.projects.filter(p => p.owner?._id === user._id || p.owner === user._id) : 
                                      res.data.filter(p => p.owner?._id === user._id || p.owner === user._id);
                 setMyProjects(userProjects || []);
 
                 // Fetch Bookmarks
                 if (token) {
-                    const bmRes = await axios.get((import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/projects/bookmarked/me', {
-                        headers: { 'auth-token': token }
-                    });
+                    const bmRes = await api.get('/api/projects/bookmarked/me');
                     setBookmarkedProjects(bmRes.data);
                 }
 

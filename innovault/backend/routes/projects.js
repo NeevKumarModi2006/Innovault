@@ -19,7 +19,8 @@ router.get('/', async (req, res) => {
         }
 
         if (techStack) {
-            query.techStack = { $in: techStack.split(',').map(t => t.trim()) };
+            const regexTags = techStack.split(',').map(t => new RegExp('^' + t.trim() + '$', 'i'));
+            query.techStack = { $in: regexTags };
         }
 
         let sortOption = { createdAt: -1 };
