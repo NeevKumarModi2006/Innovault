@@ -22,6 +22,23 @@ const reviewSchema = new mongoose.Schema({
         trim: true,
         maxlength: 500
     },
+    pros: {
+        type: String,
+        trim: true,
+        maxlength: 500
+    },
+    cons: {
+        type: String,
+        trim: true,
+        maxlength: 500
+    },
+    isEdited: {
+        type: Boolean,
+        default: false
+    },
+    updatedAt: {
+        type: Date
+    },
     isVerifiedRating: {
         type: Boolean,
         default: false,

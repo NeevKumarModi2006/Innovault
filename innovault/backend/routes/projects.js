@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Review = require('../models/Review');
@@ -55,16 +56,23 @@ router.get('/', async (req, res) => {
 // GET Single Project (full fields)
 router.get('/:id', async (req, res) => {
     try {
-        // Atomic view increment — no full document read+write
-        const project = await Project.findByIdAndUpdate(
-            req.params.id,
-            { $inc: { views: 1 } },
-            { new: true }
-        ).populate('owner', 'username role profilePicture bio');
+        // Simply fetch the project without incrementing to prevent +2 dev mode bug
+        const project = await Project.findById(req.params.id)
+            .populate('owner', 'username role profilePicture bio');
 
         if (!project) return res.status(404).json({ message: 'Project not found' });
 
         res.json(project);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// PUT Increment View
+router.put('/:id/view', async (req, res) => {
+    try {
+        await Project.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -167,28 +175,46 @@ router.delete('/:id', verify, async (req, res) => {
     }
 });
 
-// POST Review (Dual Tier Logic)
+// POST/PUT Review (Upsert Dual Tier Logic)
 router.post('/:id/reviews', verify, async (req, res) => {
     try {
-        const { rating, comment } = req.body;
+        const { rating, comment, pros, cons } = req.body;
         const projectId = req.params.id;
         const userId = req.user._id;
 
-        const existingReview = await Review.findOne({ user: userId, project: projectId });
-        if (existingReview) return res.status(400).json({ message: 'You have already reviewed this project.' });
-
         const user = await User.findById(userId);
+        const projectRecord = await Project.findById(projectId);
+
+        if (!projectRecord) return res.status(404).json({ message: 'Project not found.' });
+        if (projectRecord.owner.toString() === userId.toString()) {
+            return res.status(403).json({ message: "You cannot review your own project." });
+        }
+
         const isVerifiedRating = user.role === 'VERIFIED';
 
-        const review = new Review({
-            user: userId,
-            project: projectId,
-            rating,
-            comment,
-            isVerifiedRating
-        });
-
-        await review.save();
+        let review = await Review.findOne({ user: userId, project: projectId });
+        if (review) {
+            // Update existing review
+            review.rating = rating;
+            review.comment = comment;
+            review.pros = pros;
+            review.cons = cons;
+            review.isEdited = true;
+            review.updatedAt = Date.now();
+            await review.save();
+        } else {
+            // Create new review
+            review = new Review({
+                user: userId,
+                project: projectId,
+                rating,
+                comment,
+                pros,
+                cons,
+                isVerifiedRating
+            });
+            await review.save();
+        }
 
         // Recalculate Project Ratings (Aggregation)
         const stats = await Review.aggregate([
@@ -219,6 +245,50 @@ router.post('/:id/reviews', verify, async (req, res) => {
     }
 });
 
+// DELETE Review
+router.delete('/:id/reviews', verify, async (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const userId = req.user._id;
+
+        const deletedReview = await Review.findOneAndDelete({ user: userId, project: projectId });
+        if (!deletedReview) return res.status(404).json({ message: 'Review not found.' });
+
+        // Recalculate Project Ratings (Aggregation)
+        const stats = await Review.aggregate([
+            { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+            {
+                $group: {
+                    _id: '$project',
+                    avgRating: { $avg: '$rating' },
+                    avgVerifiedRating: {
+                        $avg: {
+                            $cond: [{ $eq: ['$isVerifiedRating', true] }, '$rating', null]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        if (stats.length > 0) {
+            await Project.findByIdAndUpdate(projectId, {
+                averageRating: stats[0].avgRating || 0,
+                verifiedRating: stats[0].avgVerifiedRating || 0
+            });
+        } else {
+            // Reset if no reviews left
+            await Project.findByIdAndUpdate(projectId, {
+                averageRating: 0,
+                verifiedRating: 0
+            });
+        }
+
+        res.json({ message: 'Review deleted successfully.' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET Bookmarked Projects
 router.get('/bookmarked/me', verify, async (req, res) => {
     try {
@@ -232,13 +302,80 @@ router.get('/bookmarked/me', verify, async (req, res) => {
     }
 });
 
+// GET my review for a Project
+router.get('/:id/my-review', verify, async (req, res) => {
+    try {
+        const review = await Review.findOne({ project: req.params.id, user: req.user._id })
+            .populate('user', 'username role profilePicture');
+        res.json(review);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // GET Reviews for a Project
 router.get('/:id/reviews', async (req, res) => {
     try {
-        const reviews = await Review.find({ project: req.params.id })
+        const { page = 1, limit = 20, sort, filter } = req.query;
+        const projectId = req.params.id;
+        let query = { project: projectId };
+
+        if (filter === 'verifiedOnly') {
+            query.isVerifiedRating = true;
+        } else if (filter && filter.startsWith('rating-')) {
+            query.rating = parseInt(filter.split('-')[1]);
+        }
+
+        // Sort option defaults to Highest Rating then Newest as per user instructions
+        let sortOption = { rating: -1, createdAt: -1 };
+        if (sort === 'lowest') sortOption = { rating: 1, createdAt: -1 };
+        if (sort === 'recent') sortOption = { createdAt: -1 };
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const total = await Review.countDocuments({ project: projectId });
+        const filteredTotal = await Review.countDocuments(query);
+
+        const reviews = await Review.find(query)
             .populate('user', 'username role profilePicture')
-            .sort({ createdAt: -1 });
-        res.json(reviews);
+            .sort(sortOption)
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Background aggregation for overall project stats regardless of filter
+        const statsAggregation = await Review.aggregate([
+            { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+            {
+                $group: {
+                    _id: null,
+                    totalReviews: { $sum: 1 },
+                    totalVerified: { $sum: { $cond: [{ $eq: ['$isVerifiedRating', true] }, 1, 0] } },
+                    avgRating: { $avg: '$rating' },
+                    avgVerified: { $avg: { $cond: [{ $eq: ['$isVerifiedRating', true] }, '$rating', null] } },
+                    star5: { $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] } },
+                    star4: { $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] } },
+                    star3: { $sum: { $cond: [{ $eq: ['$rating', 3] }, 1, 0] } },
+                    star2: { $sum: { $cond: [{ $eq: ['$rating', 2] }, 1, 0] } },
+                    star1: { $sum: { $cond: [{ $eq: ['$rating', 1] }, 1, 0] } }
+                }
+            }
+        ]);
+
+        const stats = statsAggregation.length > 0 ? statsAggregation[0] : {
+            totalReviews: 0, totalVerified: 0, avgRating: 0, avgVerified: 0,
+            star5: 0, star4: 0, star3: 0, star2: 0, star1: 0
+        };
+
+        res.json({
+            reviews,
+            stats,
+            pagination: {
+                total,
+                filteredTotal,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(filteredTotal / parseInt(limit))
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
