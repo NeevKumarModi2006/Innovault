@@ -29,7 +29,7 @@ class MarkdownErrorBoundary extends React.Component {
 const ProjectDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
+    const { user, loading: authLoading } = useContext(AuthContext);
     const [project, setProject] = useState(null);
 
     // Review States
@@ -61,7 +61,7 @@ const ProjectDetails = () => {
     const [filter, setFilter] = useState('');
 
     const viewIncremented = useRef(false);
-    
+
     // Derived states
     const isOwner = user && project && user._id === (project.owner?._id || project.owner);
     const isDirty = isEditing || (!userReview && (comment.trim() || pros.trim() || cons.trim()));
@@ -86,7 +86,7 @@ const ProjectDetails = () => {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         document.addEventListener('click', handleLinkClick, { capture: true });
-        
+
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
             document.removeEventListener('click', handleLinkClick, { capture: true });
@@ -94,12 +94,28 @@ const ProjectDetails = () => {
     }, [isDirty]);
 
     useEffect(() => {
+        viewIncremented.current = false; // Purge block when navigating between internal projects
         fetchProjectData();
     }, [id]);
 
+    // Independent View Incrementer guarded by Auth resolution
+    useEffect(() => {
+        if (!authLoading && project && !viewIncremented.current) {
+            const isProjectOwner = user && project && String(user._id) === String(project.owner?._id || project.owner);
+
+            if (!isProjectOwner) {
+                viewIncremented.current = true;
+                api.put(`/api/projects/${id}/view`, { viewerId: user?._id }).catch(e => console.log('View API Error', e));
+            } else {
+                // Owner visited, gracefully mark incremented without calling API to save bandwidth
+                viewIncremented.current = true;
+            }
+        }
+    }, [authLoading, project, user, id]);
+
     useEffect(() => {
         if (id) {
-            fetchReviews(1, true); // Fetch reviews separated from project fetch to avoid race condition
+            fetchReviews(1, true, sort, filter); // Fetch reviews separated from project fetch to avoid race condition
         }
     }, [id, sort, filter]);
 
@@ -109,29 +125,31 @@ const ProjectDetails = () => {
         }
     }, [user, project]);
 
-    const fetchProjectData = async () => {
-        try {
-            const projRes = await api.get(`/api/projects/${id}`);
-            setProject(projRes.data);
-
-            if (!viewIncremented.current) {
-                viewIncremented.current = true;
-                await api.put(`/api/projects/${id}/view`).catch(err => console.log('View tracking error', err));
-            }
-
-            if (user) {
+    useEffect(() => {
+        if (user && id) {
+            const fetchMyReview = async () => {
                 try {
                     const token = localStorage.getItem('token');
-                    const myRevRes = await api.get(`/api/projects/${id}/my-review`, {
-                        headers: { 'auth-token': token }
-                    });
-                    if (myRevRes.data) {
-                        setUserReview(myRevRes.data);
+                    if (token) {
+                        const myRevRes = await api.get(`/api/projects/${id}/my-review`, {
+                            headers: { 'auth-token': token }
+                        });
+                        if (myRevRes.data) {
+                            setUserReview(myRevRes.data);
+                        }
                     }
                 } catch (e) {
                     console.log('Could not fetch user review', e);
                 }
-            }
+            };
+            fetchMyReview();
+        }
+    }, [user, id]);
+
+    const fetchProjectData = async () => {
+        try {
+            const projRes = await api.get(`/api/projects/${id}`);
+            setProject(projRes.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -139,10 +157,10 @@ const ProjectDetails = () => {
         }
     };
 
-    const fetchReviews = async (pageToLoad = 1, reset = false) => {
+    const fetchReviews = async (pageToLoad = 1, reset = false, currentSort = sort, currentFilter = filter) => {
         try {
             const revRes = await api.get(`/api/projects/${id}/reviews`, {
-                params: { page: pageToLoad, limit: 5, sort, filter }
+                params: { page: pageToLoad, limit: 5, sort: currentSort, filter: currentFilter }
             });
             const { reviews: newReviews, stats: newStats, pagination: newPag } = revRes.data;
 
@@ -151,9 +169,16 @@ const ProjectDetails = () => {
             } else {
                 setReviews(prev => [...prev, ...newReviews]);
             }
-            
+
             setStats(newStats);
             setPagination(newPag);
+
+            // Dynamically update UI without reloading
+            setProject(prev => prev ? {
+                ...prev,
+                averageRating: newStats.avgRating || 0,
+                verifiedRating: newStats.avgVerified || 0
+            } : prev);
         } catch (e) {
             console.log('Reviews fetch failed', e);
         }
@@ -196,7 +221,7 @@ const ProjectDetails = () => {
             setCons('');
             setRating(5);
             setIsEditing(false);
-            fetchReviews(1, true); // reload reviews and stats
+            fetchReviews(1, true, sort, filter); // reload reviews and stats
         } catch (err) {
             console.error(err);
             alert("Failed to delete review");
@@ -232,9 +257,31 @@ const ProjectDetails = () => {
             setUserReview(res.data);
             setIsEditing(false);
             setReviewError('');
-            fetchReviews(1, true); // reload reviews and stats
+            fetchReviews(1, true, sort, filter); // reload reviews and stats
         } catch (err) {
             setReviewError(err.response?.data?.message || 'Failed to submit review');
+        }
+    };
+
+    const handleReportReview = async (reviewId) => {
+        if (!user) return alert("Please login to report reviews.");
+        if (!window.confirm("Are you sure you want to report this review for violating community guidelines?")) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await api.put(`/api/projects/${id}/reviews/${reviewId}/report`, {}, {
+                headers: { 'auth-token': token }
+            });
+
+            if (res.data.newlyDeleted) {
+                alert("This review has been removed due to multiple reports.");
+                fetchReviews(1, true, sort, filter);
+            } else {
+                alert("Report submitted successfully.");
+                setReviews(prev => prev.map(r => r._id === reviewId ? { ...r, reportedBy: [...(r.reportedBy || []), user._id] } : r));
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || "Failed to report review");
         }
     };
 
@@ -283,32 +330,32 @@ const ProjectDetails = () => {
                         className="w-full h-full object-cover opacity-50 block"
                     />
                     <div className="absolute top-4 right-4 z-10 flex gap-2">
-                         {isOwner && (
-                             <div className="relative">
-                                 <button 
+                        {isOwner && (
+                            <div className="relative">
+                                <button
                                     onClick={() => setShowProjectMenu(!showProjectMenu)}
                                     className="p-2 bg-black/60 hover:bg-black/80 rounded-full text-white backdrop-blur-sm transition"
-                                 >
-                                     <MoreVertical className="w-5 h-5" />
-                                 </button>
-                                 {showProjectMenu && (
-                                     <div className="absolute right-0 mt-2 w-48 bg-dark-card border border-gray-700 rounded-lg shadow-xl overflow-hidden z-20">
-                                         <Link 
-                                            to={`/edit-project/${project._id}`}
+                                >
+                                    <MoreVertical className="w-5 h-5" />
+                                </button>
+                                {showProjectMenu && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-dark-card border border-gray-700 rounded-lg shadow-xl overflow-hidden z-20">
+                                        <Link
+                                            to={`/edit/${project._id}`}
                                             className="w-full text-left px-4 py-3 text-sm text-gray-200 hover:bg-gray-800 flex items-center gap-2 transition"
-                                         >
-                                             <Edit2 className="w-4 h-4 text-blue-400" /> Edit Project
-                                         </Link>
-                                         <button 
+                                        >
+                                            <Edit2 className="w-4 h-4 text-blue-400" /> Edit Project
+                                        </Link>
+                                        <button
                                             onClick={handleDeleteProject}
                                             className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-900/30 flex items-center gap-2 transition"
-                                         >
-                                             <Trash2 className="w-4 h-4" /> Delete Project
-                                         </button>
-                                     </div>
-                                 )}
-                             </div>
-                         )}
+                                        >
+                                            <Trash2 className="w-4 h-4" /> Delete Project
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="absolute bottom-0 left-0 p-8 w-full bg-gradient-to-t from-gray-900 to-transparent pointer-events-none">
                         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 pointer-events-auto">
@@ -324,8 +371,8 @@ const ProjectDetails = () => {
                                 <button
                                     onClick={handleBookmark}
                                     className={`p-3 rounded-full transition-colors ${isBookmarked
-                                            ? 'bg-primary text-white shadow-lg shadow-primary/50'
-                                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/50'
+                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
                                         }`}
                                     title={isBookmarked ? "Remove Bookmark" : "Bookmark Project"}
                                 >
@@ -372,7 +419,7 @@ const ProjectDetails = () => {
                                     <span className="text-5xl font-extrabold text-white">{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : '0.0'}</span>
                                     <div className="flex flex-col pb-1">
                                         <div className="flex text-yellow-400 mb-1">
-                                            {[1,2,3,4,5].map(i => <Star key={i} className={`w-4 h-4 ${i <= Math.round(stats.avgRating) ? 'fill-current' : 'text-gray-600'}`} /> )}
+                                            {[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-4 h-4 ${i <= Math.round(stats.avgRating) ? 'fill-current' : 'text-gray-600'}`} />)}
                                         </div>
                                         <span className="text-sm text-gray-400">{stats.totalReviews} total reviews</span>
                                     </div>
@@ -412,15 +459,15 @@ const ProjectDetails = () => {
                                     <div className="bg-dark-input p-4 rounded border border-primary/30">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex items-center text-yellow-400">
-                                                {[1,2,3,4,5].map(star => <Star key={star} className={`w-4 h-4 ${star <= userReview.rating ? 'fill-current' : 'text-gray-600'}`} />)}
+                                                {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-4 h-4 ${star <= userReview.rating ? 'fill-current' : 'text-gray-600'}`} />)}
                                             </div>
                                             <span className="text-xs text-gray-500">{userReview.isEdited ? 'Edited' : ''}</span>
                                         </div>
                                         <p className="text-gray-300 text-sm mb-3">{userReview.comment || <i>No comment provided.</i>}</p>
                                         {(userReview.pros || userReview.cons) && (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-4 pt-4 border-t border-gray-700">
-                                                {userReview.pros && <div><b className="text-green-400 flex items-center gap-1 mb-1"><PlusCircle className="w-3 h-3"/> Pros</b><p className="text-gray-400">{userReview.pros}</p></div>}
-                                                {userReview.cons && <div><b className="text-red-400 flex items-center gap-1 mb-1"><MinusCircle className="w-3 h-3"/> Cons</b><p className="text-gray-400">{userReview.cons}</p></div>}
+                                                {userReview.pros && <div><b className="text-green-400 flex items-center gap-1 mb-1"><PlusCircle className="w-3 h-3" /> Pros</b><p className="text-gray-400">{userReview.pros}</p></div>}
+                                                {userReview.cons && <div><b className="text-red-400 flex items-center gap-1 mb-1"><MinusCircle className="w-3 h-3" /> Cons</b><p className="text-gray-400">{userReview.cons}</p></div>}
                                             </div>
                                         )}
                                     </div>
@@ -437,7 +484,7 @@ const ProjectDetails = () => {
                                             ))}
                                             <span className="text-gray-400 text-sm ml-2">{rating} out of 5 stars</span>
                                         </div>
-                                        
+
                                         <textarea
                                             className="w-full bg-dark border border-gray-600 rounded p-3 text-white mb-4 focus:ring-primary focus:border-primary text-sm transition-colors"
                                             rows={3}
@@ -445,14 +492,14 @@ const ProjectDetails = () => {
                                             value={comment}
                                             onChange={(e) => setComment(e.target.value)}
                                         />
-                                        
+
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                             <div>
-                                                <label className="text-xs text-gray-400 flex mb-1 items-center gap-1"><PlusCircle className="w-3 h-3"/> Pros (optional)</label>
+                                                <label className="text-xs text-gray-400 flex mb-1 items-center gap-1"><PlusCircle className="w-3 h-3" /> Pros (optional)</label>
                                                 <input type="text" className="w-full bg-dark border border-gray-600 rounded p-2 text-white focus:ring-primary text-sm transition-colors" placeholder="What went well?" value={pros} onChange={e => setPros(e.target.value)} />
                                             </div>
                                             <div>
-                                                <label className="text-xs text-gray-400 flex mb-1 items-center gap-1"><MinusCircle className="w-3 h-3"/> Cons (optional)</label>
+                                                <label className="text-xs text-gray-400 flex mb-1 items-center gap-1"><MinusCircle className="w-3 h-3" /> Cons (optional)</label>
                                                 <input type="text" className="w-full bg-dark border border-gray-600 rounded p-2 text-white focus:ring-primary text-sm transition-colors" placeholder="What could be improved?" value={cons} onChange={e => setCons(e.target.value)} />
                                             </div>
                                         </div>
@@ -467,7 +514,7 @@ const ProjectDetails = () => {
                                                 </button>
                                             )}
                                         </div>
-                                        
+
                                         {/* Subtle reminder */}
                                         <p className="mt-4 text-xs text-yellow-500/80 italic flex items-center gap-1">
                                             <AlertOctagon className="w-3 h-3" /> Don't forget to submit to save your review.
@@ -506,71 +553,80 @@ const ProjectDetails = () => {
                             {reviews
                                 .filter(r => !userReview || r._id !== userReview._id) // Filter out the user's own review so it's not duped
                                 .map(review => (
-                                <div key={review._id} className="bg-dark-input p-5 rounded-lg border border-gray-800 hover:border-gray-700 transition">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shadow-inner">
-                                                {review.user?.username?.[0]?.toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-white text-sm">{review.user?.username}</span>
-                                                    {review.isVerifiedRating && (
-                                                        <span className="px-1.5 py-0.5 bg-green-900/30 text-green-400 text-[10px] uppercase tracking-wider font-bold rounded border border-green-800 flex items-center gap-1">
-                                                            <ShieldCheck className="w-3 h-3" /> NITW
-                                                        </span>
-                                                    )}
+                                    <div key={review._id} className="bg-dark-input p-5 rounded-lg border border-gray-800 hover:border-gray-700 transition">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shadow-inner">
+                                                    {review.user?.username?.[0]?.toUpperCase()}
                                                 </div>
-                                                <span className="text-xs text-gray-500">
-                                                    {new Date(review.updatedAt || review.createdAt).toLocaleDateString()} 
-                                                    {review.isEdited && ' (Edited)'}
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-white text-sm">{review.user?.username}</span>
+                                                        {review.isVerifiedRating && (
+                                                            <span className="px-1.5 py-0.5 bg-green-900/30 text-green-400 text-[10px] uppercase tracking-wider font-bold rounded border border-green-800 flex items-center gap-1">
+                                                                <ShieldCheck className="w-3 h-3" /> NITW
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">
+                                                        {new Date(review.updatedAt || review.createdAt).toLocaleDateString()}
+                                                        {review.isEdited && ' (Edited)'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center bg-black/30 px-2 py-1 rounded text-yellow-400 border border-gray-800">
+                                                <Star className="w-3 h-3 fill-current mr-1" />
+                                                <span className="text-sm font-bold">{review.rating}</span>
+                                            </div>
+                                        </div>
+
+                                        {review.comment && <p className="text-gray-300 text-sm mt-3 leading-relaxed">{review.comment}</p>}
+
+                                        {(review.pros || review.cons) && (
+                                            <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 text-sm mt-4 pt-4 border-t border-gray-700/50">
+                                                {review.pros && (
+                                                    <div className="flex-1">
+                                                        <b className="text-green-400/90 flex items-center gap-1 mb-1 text-xs"><PlusCircle className="w-3 h-3" /> Pros</b>
+                                                        <p className="text-gray-400 text-xs leading-relaxed">{review.pros}</p>
+                                                    </div>
+                                                )}
+                                                {review.cons && (
+                                                    <div className="flex-1">
+                                                        <b className="text-red-400/90 flex items-center gap-1 mb-1 text-xs"><MinusCircle className="w-3 h-3" /> Cons</b>
+                                                        <p className="text-gray-400 text-xs leading-relaxed">{review.cons}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-4 flex justify-end">
+                                            {review.reportedBy?.includes(user?._id) ? (
+                                                <span className="text-xs text-red-500/70 flex items-center gap-1 cursor-default">
+                                                    <AlertOctagon className="w-3 h-3" /> Reported
                                                 </span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center bg-black/30 px-2 py-1 rounded text-yellow-400 border border-gray-800">
-                                            <Star className="w-3 h-3 fill-current mr-1" />
-                                            <span className="text-sm font-bold">{review.rating}</span>
-                                        </div>
-                                    </div>
-                                    
-                                    {review.comment && <p className="text-gray-300 text-sm mt-3 leading-relaxed">{review.comment}</p>}
-                                    
-                                    {(review.pros || review.cons) && (
-                                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 text-sm mt-4 pt-4 border-t border-gray-700/50">
-                                            {review.pros && (
-                                                <div className="flex-1">
-                                                    <b className="text-green-400/90 flex items-center gap-1 mb-1 text-xs"><PlusCircle className="w-3 h-3"/> Pros</b>
-                                                    <p className="text-gray-400 text-xs leading-relaxed">{review.pros}</p>
-                                                </div>
-                                            )}
-                                            {review.cons && (
-                                                <div className="flex-1">
-                                                    <b className="text-red-400/90 flex items-center gap-1 mb-1 text-xs"><MinusCircle className="w-3 h-3"/> Cons</b>
-                                                    <p className="text-gray-400 text-xs leading-relaxed">{review.cons}</p>
-                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleReportReview(review._id)}
+                                                    className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <AlertOctagon className="w-3 h-3" /> Report
+                                                </button>
                                             )}
                                         </div>
-                                    )}
-
-                                    <div className="mt-4 flex justify-end">
-                                        <button className="text-xs text-gray-500 hover:text-red-400 flex items-center gap-1 transition-colors">
-                                           <AlertOctagon className="w-3 h-3" /> Report
-                                        </button>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
 
-                            {reviews.length === 0 && (!userReview) && (
+                            {reviews.filter(r => !userReview || r._id !== userReview._id).length === 0 && (
                                 <div className="text-center py-10 bg-dark-input rounded-lg border border-dashed border-gray-700 text-gray-500">
-                                    No reviews match the selected criteria.
+                                    No community reviews match the selected criteria.
                                 </div>
                             )}
 
                             {/* Load More Button */}
                             {pagination.page < pagination.totalPages && (
                                 <div className="flex justify-center mt-6 pt-4 border-t border-gray-800">
-                                    <button 
-                                        onClick={() => fetchReviews(pagination.page + 1)}
+                                    <button
+                                        onClick={() => fetchReviews(pagination.page + 1, false, sort, filter)}
                                         className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-full transition-all border border-gray-700 hover:border-gray-600"
                                     >
                                         Load More Reviews

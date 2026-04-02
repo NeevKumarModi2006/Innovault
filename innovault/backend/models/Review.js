@@ -44,6 +44,14 @@ const reviewSchema = new mongoose.Schema({
         default: false,
         required: true
     },
+    reportedBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: Date.now

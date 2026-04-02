@@ -14,7 +14,18 @@ const Register = () => {
     const [sendingOtp, setSendingOtp] = useState(false);
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
-    
+    const [timer, setTimer] = useState(0);
+
+    React.useEffect(() => {
+        let interval;
+        if (timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prev) => prev - 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [timer]);
+
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
 
@@ -28,6 +39,7 @@ const Register = () => {
         try {
             await api.post('/api/auth/send-otp', { email });
             setOtpSent(true);
+            setTimer(60);
             setSuccessMsg('OTP sent to your email. It expires in 10 minutes.');
         } catch (err) {
             setError(err.response?.data?.message || err.response?.data || 'Failed to send OTP.');
@@ -75,7 +87,7 @@ const Register = () => {
                 <div className="mt-8 space-y-6">
                     {error && <div className="text-red-500 text-sm text-center bg-red-900/20 p-2 rounded">{error}</div>}
                     {successMsg && <div className="text-green-400 text-sm text-center bg-green-900/20 p-2 rounded">{successMsg}</div>}
-                    
+
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         <div className="rounded-md shadow-sm -space-y-px">
                             <div className="relative">
@@ -115,13 +127,13 @@ const Register = () => {
                                 />
                                 <button
                                     type="button"
-                                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-300"
+                                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 z-20"
                                     onClick={() => setShowPassword(!showPassword)}
                                 >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                                 </button>
                             </div>
-                            
+
                             {otpSent && (
                                 <div className="relative">
                                     <ShieldCheck className="absolute top-3 left-3 text-primary w-5 h-5" />
@@ -133,6 +145,16 @@ const Register = () => {
                                         value={otp}
                                         onChange={(e) => setOtp(e.target.value)}
                                     />
+                                    <div className="absolute top-2 right-2 z-20">
+                                        <button
+                                            type="button"
+                                            onClick={handleSendOtp}
+                                            disabled={timer > 0 || sendingOtp}
+                                            className="px-3 py-1 bg-gray-800 text-xs text-white rounded hover:bg-gray-700 disabled:opacity-50 transition"
+                                        >
+                                            {timer > 0 ? `Resend in ${timer}s` : 'Resend OTP'}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -155,7 +177,7 @@ const Register = () => {
                             </button>
                         )}
                     </form>
-                    
+
                     <div className="text-center">
                         <p className="text-sm text-gray-400">
                             Already have an account?{' '}

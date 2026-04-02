@@ -15,7 +15,7 @@ const Login = () => {
         e.preventDefault();
         try {
             const res = await api.post('/api/auth/login', { email, password });
-            
+
             // Immediately use the token to fetch full user info 
             localStorage.setItem('token', res.data);
             const userRes = await api.get('/api/auth/me');
@@ -68,11 +68,20 @@ const Login = () => {
                             />
                             <button
                                 type="button"
-                                className="absolute top-3 right-3 text-gray-500 hover:text-gray-300"
+                                className="absolute top-3 right-3 text-gray-500 hover:text-gray-300 z-20"
                                 onClick={() => setShowPassword(!showPassword)}
                             >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                             </button>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm"></div>
+                        <div className="text-sm">
+                            <Link to="/forgot-password" className="font-medium text-primary hover:text-primary-light">
+                                Forgot your password?
+                            </Link>
                         </div>
                     </div>
 

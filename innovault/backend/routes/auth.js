@@ -19,12 +19,17 @@ const transporter = nodemailer.createTransport({
 // Send OTP
 router.post('/send-otp', async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, type } = req.body;
         if (!email) return res.status(400).send('Email is required');
 
-        // Check if user already exists
+        // Check user existence
         const emailExist = await User.findOne({ email });
-        if (emailExist) return res.status(400).send('Email already registered');
+        
+        if (type === 'reset') {
+            if (!emailExist) return res.status(400).send('Email not registered');
+        } else {
+            if (emailExist) return res.status(400).send('Email already registered');
+        }
 
         // Generate 6-digit OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -133,6 +138,39 @@ router.post('/login', async (req, res) => {
         res.header('auth-token', token).send(token);
     } catch (err) {
         res.status(400).send(err);
+    }
+});
+
+// Reset Password
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) return res.status(400).send('All fields are required');
+
+        // Verify OTP
+        const validOtp = await Otp.findOne({ email, otp });
+        if (!validOtp) return res.status(400).send('Invalid or expired OTP');
+
+        // Check if user exists
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).send('No account found with this email');
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update user
+        user.password = hashedPassword;
+        await user.save();
+
+        // Clean up OTP
+        await Otp.deleteOne({ email });
+
+        res.status(200).send({ message: 'Password updated successfully' });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        res.status(500).send('Failed to reset password');
     }
 });
 

@@ -1,7 +1,18 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 async function fetchWrapper(endpoint, options = {}) {
-    const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+    let url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`;
+    
+    if (options.params) {
+        const cleanParams = Object.fromEntries(
+            Object.entries(options.params).filter(([_, v]) => v != null && v !== '')
+        );
+        const queryString = new URLSearchParams(cleanParams).toString();
+        if (queryString) {
+            url += (url.includes('?') ? '&' : '?') + queryString;
+        }
+        delete options.params;
+    }
     
     const headers = new Headers(options.headers || {});
     

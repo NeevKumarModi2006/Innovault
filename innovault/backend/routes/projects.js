@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Review = require('../models/Review');
+const ProjectView = require('../models/ProjectView');
 const verify = require('../middleware/verifyToken');
 
 // GET All Projects — Paginated, Filtered, Sorted
@@ -71,9 +72,43 @@ router.get('/:id', async (req, res) => {
 // PUT Increment View
 router.put('/:id/view', async (req, res) => {
     try {
+        const viewerId = req.body.viewerId;
+        const project = await Project.findById(req.params.id);
+        
+        if (!project) return res.status(404).json({ message: 'Project not found' });
+
+        if (viewerId && project.owner && String(project.owner) === String(viewerId)) {
+            return res.json({ success: true, ignored: true });
+        }
+
+        // Establish the unique tracker token for this anonymous or logged-in visitor
+        // We use X-Forwarded-For if behind a proxy, otherwise fallback to remote address.
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anonymous';
+        const identifier = (viewerId && viewerId !== 'undefined' && viewerId !== 'null') ? String(viewerId) : clientIp;
+
+        // Verify if this user or IP has viewed this project already
+        const existingView = await ProjectView.findOne({
+            projectId: project._id,
+            viewerIdentifier: identifier
+        });
+
+        if (existingView) {
+            return res.json({ success: true, alreadyViewed: true });
+        }
+
+        // Persist the unique project view tuple
+        await ProjectView.create({
+            projectId: project._id,
+            viewerIdentifier: identifier
+        });
+
         await Project.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
         res.json({ success: true });
     } catch (err) {
+        // Capture duplicate key error just in case of parallel aggressive calls
+        if (err.code === 11000) {
+            return res.json({ success: true, alreadyViewed: true });
+        }
         res.status(500).json({ message: err.message });
     }
 });
@@ -218,7 +253,7 @@ router.post('/:id/reviews', verify, async (req, res) => {
 
         // Recalculate Project Ratings (Aggregation)
         const stats = await Review.aggregate([
-            { $match: { project: review.project } },
+            { $match: { project: review.project, isDeleted: { $ne: true } } },
             {
                 $group: {
                     _id: '$project',
@@ -245,6 +280,70 @@ router.post('/:id/reviews', verify, async (req, res) => {
     }
 });
 
+// PUT Report Review
+router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
+    try {
+        const projectId = req.params.id;
+        const reviewId = req.params.reviewId;
+        const userId = req.user._id;
+
+        const review = await Review.findById(reviewId);
+        if (!review) return res.status(404).json({ message: 'Review not found.' });
+
+        // Add user to reportedBy if not already present
+        if (!review.reportedBy.includes(userId)) {
+            review.reportedBy.push(userId);
+            
+            // Check if threshold is reached
+            const threshold = parseInt(process.env.REPORT_THRESHOLD) || 20;
+            let newlyDeleted = false;
+
+            if (review.reportedBy.length >= threshold) {
+                review.isDeleted = true;
+                newlyDeleted = true;
+            }
+
+            await review.save();
+
+            // If it just got deleted, recalculate project stats
+            if (newlyDeleted) {
+                const stats = await Review.aggregate([
+                    { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
+                    {
+                        $group: {
+                            _id: '$project',
+                            avgRating: { $avg: '$rating' },
+                            avgVerifiedRating: {
+                                $avg: {
+                                    $cond: [{ $eq: ['$isVerifiedRating', true] }, '$rating', null]
+                                }
+                            }
+                        }
+                    }
+                ]);
+
+                if (stats.length > 0) {
+                    await Project.findByIdAndUpdate(projectId, {
+                        averageRating: stats[0].avgRating || 0,
+                        verifiedRating: stats[0].avgVerifiedRating || 0
+                    });
+                } else {
+                    await Project.findByIdAndUpdate(projectId, {
+                        averageRating: 0,
+                        verifiedRating: 0
+                    });
+                }
+            }
+            
+            res.json({ message: 'Report submitted successfully.', newlyDeleted });
+        } else {
+            res.status(400).json({ message: 'You have already reported this review.' });
+        }
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // DELETE Review
 router.delete('/:id/reviews', verify, async (req, res) => {
     try {
@@ -256,7 +355,7 @@ router.delete('/:id/reviews', verify, async (req, res) => {
 
         // Recalculate Project Ratings (Aggregation)
         const stats = await Review.aggregate([
-            { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+            { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
             {
                 $group: {
                     _id: '$project',
@@ -318,7 +417,7 @@ router.get('/:id/reviews', async (req, res) => {
     try {
         const { page = 1, limit = 20, sort, filter } = req.query;
         const projectId = req.params.id;
-        let query = { project: projectId };
+        let query = { project: projectId, isDeleted: { $ne: true } };
 
         if (filter === 'verifiedOnly') {
             query.isVerifiedRating = true;
@@ -326,10 +425,9 @@ router.get('/:id/reviews', async (req, res) => {
             query.rating = parseInt(filter.split('-')[1]);
         }
 
-        // Sort option defaults to Highest Rating then Newest as per user instructions
         let sortOption = { rating: -1, createdAt: -1 };
         if (sort === 'lowest') sortOption = { rating: 1, createdAt: -1 };
-        if (sort === 'recent') sortOption = { createdAt: -1 };
+        if (sort === 'recent') sortOption = { updatedAt: -1, createdAt: -1 };
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const total = await Review.countDocuments({ project: projectId });
@@ -343,7 +441,7 @@ router.get('/:id/reviews', async (req, res) => {
 
         // Background aggregation for overall project stats regardless of filter
         const statsAggregation = await Review.aggregate([
-            { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+            { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
             {
                 $group: {
                     _id: null,

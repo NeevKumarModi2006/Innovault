@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Cpu, LogOut, Search, Plus } from 'lucide-react';
@@ -10,7 +10,10 @@ const Navbar = () => {
 
     const isExplorePage = location.pathname === '/explore';
 
-    const handleLogout = () => {
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+    const handleConfirmLogout = () => {
+        setShowLogoutModal(false);
         logout();
         navigate('/');
     };
@@ -40,14 +43,16 @@ const Navbar = () => {
                                 </Link>
                             )}
 
-                            {user && user.role === 'VERIFIED' && (
+                            {user && (
                                 <>
                                     <Link to="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                                        Dashboard
+                                        {user.role === 'EXTERNAL' ? 'Bookmarks' : 'Dashboard'}
                                     </Link>
-                                    <Link to="/submit" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center">
-                                        <Plus className="w-4 h-4 mr-1" /> Submit Project
-                                    </Link>
+                                    {user.role === 'VERIFIED' && (
+                                        <Link to="/submit" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center">
+                                            <Plus className="w-4 h-4 mr-1" /> Submit Project
+                                        </Link>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -59,8 +64,9 @@ const Navbar = () => {
                             <div className="flex items-center gap-4">
                                 <span className="text-sm text-gray-400">Hello, {user.username}</span>
                                 <button
-                                    onClick={handleLogout}
-                                    className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors title='Logout'"
+                                    onClick={() => setShowLogoutModal(true)}
+                                    className="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                                    title="Logout"
                                 >
                                     <LogOut className="w-5 h-5" />
                                 </button>
@@ -78,6 +84,30 @@ const Navbar = () => {
                     </div>
                 </div>
             </div>
+            
+            {/* Logout Confirmation Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-dark-card border border-gray-800 rounded-xl p-6 shadow-2xl max-w-sm w-full animate-fade-in-up">
+                        <h3 className="text-xl font-bold text-white mb-2">Log out</h3>
+                        <p className="text-gray-400 mb-6 text-sm">Are you sure you want to log out of your session?</p>
+                        <div className="flex justify-end gap-3">
+                            <button 
+                                onClick={() => setShowLogoutModal(false)}
+                                className="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleConfirmLogout}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-red-600/30"
+                            >
+                                Log Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </nav>
     );
 };

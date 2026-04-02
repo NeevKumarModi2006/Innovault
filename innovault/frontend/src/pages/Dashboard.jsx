@@ -57,31 +57,26 @@ const Dashboard = () => {
                 )}
             </div>
 
-            {/* My Projects Section */}
-            <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-secondary pl-4">My Projects</h2>
-            
-            {loading ? (
-                <div className="text-center py-20 text-gray-500">Loading your vault...</div>
-            ) : myProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                    {myProjects.map(project => (
-                        <div key={project._id} className="flex flex-col">
-                            <ProjectCard project={project} />
-                            <Link to={`/edit/${project._id}`} className="mt-3 text-center w-full py-2 bg-dark-input border border-gray-700 hover:border-gray-500 rounded text-sm font-medium text-gray-300 transition-colors">
-                                Edit Project
-                            </Link>
+            {/* My Projects Section - Hidden for External roles */}
+            {user?.role !== 'EXTERNAL' && (
+                <>
+                    <h2 className="text-2xl font-bold text-white mb-6 border-l-4 border-secondary pl-4">My Projects</h2>
+                    
+                    {loading ? (
+                        <div className="text-center py-20 text-gray-500">Loading your vault...</div>
+                    ) : myProjects.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                            {myProjects.map(project => (
+                                <ProjectCard key={project._id} project={project} />
+                            ))}
                         </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-20 mb-12 bg-dark-card rounded-xl border border-dashed border-gray-700">
-                    <p className="text-gray-400 mb-4">You haven't submitted any projects yet.</p>
-                    {user?.role === 'VERIFIED' ? (
-                        <Link to="/submit" className="text-primary font-medium hover:underline">Submit one now</Link>
                     ) : (
-                        <p className="text-sm text-gray-500">Only verified NITW users can submit projects.</p>
+                        <div className="text-center py-20 mb-12 bg-dark-card rounded-xl border border-dashed border-gray-700">
+                            <p className="text-gray-400 mb-4">You haven't submitted any projects yet.</p>
+                            <Link to="/submit" className="text-primary font-medium hover:underline">Submit one now</Link>
+                        </div>
                     )}
-                </div>
+                </>
             )}
 
             {/* Bookmarked Projects Section */}

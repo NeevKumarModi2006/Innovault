@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import ProjectCard from '../components/ProjectCard';
-import { ArrowRight, Zap } from 'lucide-react';
+import { ArrowRight, Zap, Folder, LogIn, UserPlus } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
 
 const Home = () => {
+    const { user } = React.useContext(AuthContext);
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -35,19 +37,46 @@ const Home = () => {
                     <div className="inline-flex items-center px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wide mb-6">
                         <Zap className="w-3 h-3 mr-2" /> The NITW Innovation Repository
                     </div>
-                    <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
-                        Discover what <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">NITW builds.</span>
-                    </h1>
-                    <p className="mt-4 text-xl text-gray-400 max-w-2xl mx-auto mb-10">
-                        A centralized vault for student projects, research tools, and deployed applications. Verified, reviewed, and accessible.
-                    </p>
-                    <div className="flex justify-center gap-4">
-                        <Link to="/explore" className="px-8 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary/50 flex items-center">
-                            Explore Vault <ArrowRight className="ml-2 w-5 h-5" />
-                        </Link>
-                        <Link to="/submit" className="px-8 py-3 bg-dark-card border border-gray-700 hover:border-gray-500 text-white rounded-lg font-semibold transition-all">
-                            Submit Project
-                        </Link>
+                    {user ? (
+                        <>
+                            <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
+                                Welcome back, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{user.username}</span>
+                            </h1>
+                            <p className="mt-4 text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                                Ready to continue? Access your saved vault or discover the latest verified projects today.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
+                                Welcome to <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">InnoVault.</span>
+                            </h1>
+                            <p className="mt-4 text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+                                A centralized vault for student projects, research tools, and deployed applications. Verified, reviewed, and accessible.
+                            </p>
+                        </>
+                    )}
+                    
+                    <div className="flex justify-center flex-wrap gap-4">
+                        {user ? (
+                            <>
+                                <Link to="/dashboard" className="px-8 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary/50 flex items-center">
+                                    <Folder className="w-5 h-5 mr-2" /> {user.role === 'EXTERNAL' ? 'My Bookmarks' : 'My Dashboard'}
+                                </Link>
+                                <Link to="/explore" className="px-8 py-3 bg-dark-card border border-gray-700 hover:border-gray-500 text-white rounded-lg font-semibold transition-all flex items-center">
+                                    Explore Vault <ArrowRight className="ml-2 w-5 h-5" />
+                                </Link>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/login" className="px-8 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-primary/50 flex items-center">
+                                    <LogIn className="w-5 h-5 mr-2" /> Login / Sign Up
+                                </Link>
+                                <Link to="/explore" className="px-8 py-3 bg-dark-card border border-gray-700 hover:border-gray-500 text-white rounded-lg font-semibold transition-all flex items-center">
+                                    Browse Projects <ArrowRight className="ml-2 w-5 h-5" />
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
