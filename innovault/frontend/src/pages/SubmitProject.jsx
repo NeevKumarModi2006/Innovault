@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import { Upload, X } from 'lucide-react';
+import { Upload, FolderPlus, Link2, Code2, FileText, Type, AlignLeft, CheckCircle2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const FormField = ({ label, hint, icon: Icon, children }) => (
+    <div className="group">
+        <label className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2 tracking-wide">
+            {Icon && <Icon className="w-4 h-4 text-primary" />}
+            {label}
+            {hint && <span className="ml-auto text-xs font-normal text-muted-foreground">{hint}</span>}
+        </label>
+        {children}
+    </div>
+);
+
+const inputCls =
+    'w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all duration-200';
 
 const SubmitProject = () => {
     const navigate = useNavigate();
@@ -11,19 +26,15 @@ const SubmitProject = () => {
         detailedDescription: '',
         deploymentLink: '',
         sourceLink: '',
-        techStack: '' // Comma separated string for input
+        techStack: '',
     });
     const [logo, setLogo] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-    const handleFileChange = (e) => {
-        setLogo(e.target.files[0]);
-    };
+    const handleFileChange = (e) => setLogo(e.target.files[0]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -39,22 +50,16 @@ const SubmitProject = () => {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('You must be logged in.');
 
-            // Build FormData payload to support file upload
             const payload = new FormData();
             payload.append('title', formData.title);
             payload.append('shortDescription', formData.shortDescription);
             payload.append('detailedDescription', formData.detailedDescription);
             payload.append('deploymentLink', formData.deploymentLink);
             payload.append('sourceLink', formData.sourceLink);
-            payload.append('techStack', formData.techStack); // Send as comma-separated string
-            
-            if (logo) {
-                payload.append('logo', logo);
-            }
+            payload.append('techStack', formData.techStack);
+            if (logo) payload.append('logo', logo);
 
-            // Use the fetch wrapper, which auto-attaches tokens and correctly handles FormData
             await api.post('/api/projects', payload);
-
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || err.message);
@@ -64,65 +69,156 @@ const SubmitProject = () => {
     };
 
     return (
-        <div className="pt-24 min-h-screen px-4 max-w-3xl mx-auto">
-            <h1 className="text-3xl font-bold text-white mb-2">Submit a Project</h1>
-            <p className="text-gray-400 mb-8">Share your specialized tool with the NITW community.</p>
-
-            <form onSubmit={handleSubmit} className="space-y-6 bg-dark-card p-8 rounded-xl border border-gray-800">
-                {error && <div className="text-red-500 bg-red-900/20 p-3 rounded">{error}</div>}
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Project Title</label>
-                    <input name="title" required value={formData.title} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Short Description (Max 200 chars)</label>
-                    <input name="shortDescription" required maxLength={200} value={formData.shortDescription} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Detailed Description (Markdown Supported)</label>
-                    <textarea name="detailedDescription" required rows={6} value={formData.detailedDescription} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Tech Stack (Comma separated)</label>
-                        <input name="techStack" placeholder="React, Node.js, Python" value={formData.techStack} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
+        <div className="pt-28 pb-24 min-h-screen px-4 bg-background">
+            <div className="max-w-2xl mx-auto">
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="mb-10 text-center"
+                >
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-foreground text-background mb-4">
+                        <FolderPlus className="w-7 h-7" />
                     </div>
-                </div>
+                    <h1 className="text-4xl font-bold font-outfit text-foreground tracking-tight mb-2">Submit a Project</h1>
+                    <p className="text-muted-foreground text-base">Share your work with the NITW innovation community.</p>
+                </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Deployment Link</label>
-                        <input name="deploymentLink" type="url" placeholder="https://..." value={formData.deploymentLink} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Source Code Link</label>
-                        <input name="sourceLink" type="url" placeholder="https://github.com/..." value={formData.sourceLink} onChange={handleChange} className="w-full bg-dark-input border border-gray-700 rounded px-4 py-2 text-white focus:ring-primary focus:border-primary" />
-                    </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">* At least one link (Deployment or Source Code) is required.</p>
+                <motion.form
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    onSubmit={handleSubmit}
+                    className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-6"
+                >
+                    {error && (
+                        <div className="flex items-start gap-3 text-sm text-destructive bg-destructive/8 border border-destructive/20 p-4 rounded-xl">
+                            <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            {error}
+                        </div>
+                    )}
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Project Logo</label>
-                    <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
-                        <input type="file" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="logo-upload" accept="image/*" />
-                        <div className="pointer-events-none">
-                            <Upload className="mx-auto h-12 w-12 text-gray-500" />
-                            <p className="mt-2 text-sm text-gray-400">{logo ? logo.name : "Click to upload or drag and drop"}</p>
-                            <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
+                    {/* Title */}
+                    <FormField label="Project Title" icon={Type}>
+                        <input
+                            name="title"
+                            required
+                            value={formData.title}
+                            onChange={handleChange}
+                            placeholder="My Awesome Project"
+                            className={inputCls}
+                        />
+                    </FormField>
+
+                    {/* Short Description */}
+                    <FormField label="Short Description" hint="Max 200 chars" icon={AlignLeft}>
+                        <input
+                            name="shortDescription"
+                            required
+                            maxLength={200}
+                            value={formData.shortDescription}
+                            onChange={handleChange}
+                            placeholder="One-line summary of your project"
+                            className={inputCls}
+                        />
+                        <p className="mt-1.5 text-xs text-muted-foreground text-right">{formData.shortDescription.length}/200</p>
+                    </FormField>
+
+                    {/* Detailed Description */}
+                    <FormField label="Detailed Description" hint="Markdown supported" icon={FileText}>
+                        <textarea
+                            name="detailedDescription"
+                            required
+                            rows={7}
+                            value={formData.detailedDescription}
+                            onChange={handleChange}
+                            placeholder="Describe what your project does, the problem it solves, and how it works..."
+                            className={`${inputCls} resize-y`}
+                        />
+                    </FormField>
+
+                    {/* Tech Stack */}
+                    <FormField label="Tech Stack" hint="Comma separated" icon={Code2}>
+                        <input
+                            name="techStack"
+                            placeholder="React, Node.js, Python, MongoDB..."
+                            value={formData.techStack}
+                            onChange={handleChange}
+                            className={inputCls}
+                        />
+                    </FormField>
+
+                    {/* Links */}
+                    <div>
+                        <p className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3 tracking-wide">
+                            <Link2 className="w-4 h-4 text-primary" />
+                            Project Links
+                            <span className="ml-auto text-xs font-normal text-muted-foreground">At least one required</span>
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1.5 block uppercase tracking-wider">Deployment URL</label>
+                                <input
+                                    name="deploymentLink"
+                                    type="url"
+                                    placeholder="https://myapp.com"
+                                    value={formData.deploymentLink}
+                                    onChange={handleChange}
+                                    className={inputCls}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1.5 block uppercase tracking-wider">Source Code URL</label>
+                                <input
+                                    name="sourceLink"
+                                    type="url"
+                                    placeholder="https://github.com/user/repo"
+                                    value={formData.sourceLink}
+                                    onChange={handleChange}
+                                    className={inputCls}
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="pt-4">
-                    <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 px-4 rounded-lg transition-all shadow-lg hover:shadow-primary/50 disabled:opacity-50">
-                        {loading ? 'Submitting...' : 'Launch Project'}
-                    </button>
-                </div>
-            </form>
+                    {/* Logo Upload */}
+                    <FormField label="Project Logo" hint="PNG, JPG — max 5MB">
+                        <label
+                            htmlFor="logo-upload"
+                            className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-foreground hover:bg-muted/40 transition-all duration-200 group"
+                        >
+                            <input
+                                type="file"
+                                id="logo-upload"
+                                onChange={handleFileChange}
+                                className="sr-only"
+                                accept="image/*"
+                            />
+                            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors">
+                                <Upload className="w-5 h-5 text-muted-foreground group-hover:text-background" />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-medium text-foreground">
+                                    {logo ? logo.name : 'Click to upload'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">or drag and drop</p>
+                            </div>
+                        </label>
+                    </FormField>
+
+                    {/* Divider */}
+                    <div className="border-t border-border pt-4">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-foreground text-background font-bold py-3.5 px-4 rounded-xl transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm tracking-wide shadow-sm"
+                        >
+                            {loading ? 'Submitting...' : 'Launch Project'}
+                        </button>
+                    </div>
+                </motion.form>
+            </div>
         </div>
     );
 };

@@ -7,22 +7,55 @@ export default {
   theme: {
     extend: {
       colors: {
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
         primary: {
-          DEFAULT: '#6366f1', // Indigo 500
-          dark: '#4f46e5', // Indigo 600
-          light: '#818cf8', // Indigo 400
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
+          dark: "var(--primary)", // fallback
+          light: "var(--primary)",
         },
         secondary: {
-          DEFAULT: '#ec4899', // Pink 500
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        destructive: {
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
+        },
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)",
         },
         dark: {
-          DEFAULT: '#0f172a', // Slate 900
-          card: '#1e293b', // Slate 800
-          input: '#334155', // Slate 700
+          DEFAULT: "var(--background)",
+          card: "var(--card)",
+          input: "var(--input)",
         }
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
       },
       keyframes: {
         fadeInUp: {

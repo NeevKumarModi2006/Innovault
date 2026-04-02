@@ -1,71 +1,95 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShieldCheck, Eye, Bookmark } from 'lucide-react';
+import { Star, ShieldCheck, Eye, ExternalLink, ArrowUpRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const ProjectCard = ({ project }) => {
     return (
-        <Link to={`/projects/${project._id}`} className="block group">
-            <div className="bg-dark-card rounded-xl overflow-hidden border border-gray-800 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 h-full flex flex-col">
-                <div className="relative h-48 overflow-hidden bg-gray-900">
-                    <img
-                        src={project.logoUrl && project.logoUrl !== 'default-logo.png' ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}` : 'https://via.placeholder.com/400x300/1e293b/475569?text=InnoVault'}
-                        alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md flex items-center gap-1 text-xs text-secondary font-medium border border-secondary/20">
-                        {project.status === 'active' ? 'Active' : 'Archived'}
-                    </div>
-                </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            whileHover={{ y: -6 }}
+            className="group h-full"
+        >
+            <Link to={`/projects/${project._id}`} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
+                <div className="relative bg-card border border-border rounded-2xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:border-foreground/30 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
 
-                <div className="p-5 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors line-clamp-1">{project.title}</h3>
-                    </div>
+                    {/* Thumbnail */}
+                    <div className="relative h-48 overflow-hidden bg-muted flex-shrink-0">
+                        <img
+                            src={
+                                project.logoUrl && project.logoUrl !== 'default-logo.png'
+                                    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}`
+                                    : 'https://via.placeholder.com/800x400/f8f8f8/888888?text=InnoVault'
+                            }
+                            alt={project.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        {/* Bottom fade */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-card/40 via-transparent to-transparent" />
 
-                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">{project.shortDescription}</p>
-
-                    {/* Tech Stack Badges */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {project.techStack.slice(0, 3).map((tech, index) => (
-                            <span key={index} className="px-2 py-1 rounded bg-slate-800 text-xs text-gray-300 border border-slate-700">
-                                {tech}
-                            </span>
-                        ))}
-                        {project.techStack.length > 3 && (
-                            <span className="px-2 py-1 rounded bg-slate-800 text-xs text-gray-300 border border-slate-700">
-                                +{project.techStack.length - 3}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="mt-auto pt-4 border-t border-gray-800 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            {/* Verified Rating */}
-                            <div className="flex items-center gap-1 text-primary" title="Verified NITW Rating">
-                                <ShieldCheck className="w-4 h-4" />
-                                <span className="text-sm font-semibold">{project.verifiedRating?.toFixed(1) || '-'}</span>
-                            </div>
-                            {/* Community Rating */}
-                            <div className="flex items-center gap-1 text-yellow-400" title="Community Rating">
-                                <Star className="w-4 h-4 fill-current" />
-                                <span className="text-sm font-semibold">{project.averageRating?.toFixed(1) || '-'}</span>
+                        {/* Arrow icon top right */}
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-1 group-hover:translate-x-0">
+                            <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center shadow-md">
+                                <ArrowUpRight className="w-4 h-4" />
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex items-center gap-3 text-gray-500 text-xs">
-                            <div className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" /> {project.views}
+                    {/* Card body */}
+                    <div className="flex flex-col flex-1 p-5">
+                        {/* Title + description */}
+                        <div className="mb-4">
+                            <h3 className="text-base font-bold font-outfit text-foreground mb-1.5 line-clamp-1 group-hover:text-foreground/80 transition-colors">
+                                {project.title}
+                            </h3>
+                            <p className="text-muted-foreground text-sm line-clamp-2 leading-relaxed">
+                                {project.shortDescription}
+                            </p>
+                        </div>
+
+                        {/* Tech Stack badges */}
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                            {project.techStack.slice(0, 3).map((tech, index) => (
+                                <span
+                                    key={index}
+                                    className="px-2 py-0.5 rounded-md bg-muted text-xs font-medium text-foreground border border-border"
+                                >
+                                    {tech}
+                                </span>
+                            ))}
+                            {project.techStack.length > 3 && (
+                                <span className="px-2 py-0.5 rounded-md bg-muted/50 text-xs font-medium text-muted-foreground border border-dashed border-border">
+                                    +{project.techStack.length - 3}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Footer stats */}
+                        <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-sm font-semibold">
+                                {/* Verified Rating */}
+                                <div className="flex items-center gap-1 text-foreground" title="Verified NITW Rating">
+                                    <ShieldCheck className="w-4 h-4" />
+                                    <span>{project.verifiedRating?.toFixed(1) || '—'}</span>
+                                </div>
+                                {/* Community Rating */}
+                                <div className="flex items-center gap-1 text-muted-foreground" title="Community Rating">
+                                    <Star className="w-4 h-4 fill-muted-foreground" />
+                                    <span>{project.averageRating?.toFixed(1) || '—'}</span>
+                                </div>
                             </div>
-                            {/* 
-                           <div className="flex items-center gap-1">
-                                <Bookmark className="w-3 h-3" /> {project.bookmarksCount}
-                           </div>
-                           */}
+
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>{project.views}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </Link>
+            </Link>
+        </motion.div>
     );
 };
 
