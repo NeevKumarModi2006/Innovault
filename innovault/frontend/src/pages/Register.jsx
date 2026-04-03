@@ -174,7 +174,7 @@ const Register = () => {
                                     type={showPassword ? "text" : "password"}
                                     required
                                     className="appearance-none block w-full px-12 pr-12 py-3.5 border border-border bg-background/50 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm disabled:opacity-50"
-                                    placeholder="Password (Min 6 chars)"
+                                    placeholder="Password (Min 8 chars)"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={otpSent}
