@@ -4,10 +4,6 @@ const Otp = require('../models/Otp');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const dns = require('dns');
-
-// Force IPv4 DNS resolution first to prevent ENETUNREACH on Render's IPv6 network
-dns.setDefaultResultOrder('ipv4first');
 
 const validatePassword = require('../middleware/validatePassword');
 const { incrementLoginAttempts, getLoginAttempts, clearLoginAttempts } = require('../services/cacheService');
