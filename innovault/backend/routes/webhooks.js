@@ -9,18 +9,12 @@
 const router = require('express').Router();
 const { Receiver } = require('@upstash/qstash');
 const nodemailer = require('nodemailer');
+const sgTransport = require('nodemailer-sendgrid');
 
-// Setup Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false, // true for 465, false for other ports
-    family: 4,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+// Setup Nodemailer Transporter using SendGrid API
+const transporter = nodemailer.createTransport(sgTransport({
+    apiKey: process.env.SENDGRID_API_KEY
+}));
 
 // Initialize the receiver with the signing keys from your dashboard
 const receiver = new Receiver({
