@@ -131,7 +131,7 @@ const Home = () => {
                 <div className="flex justify-between items-end mb-12">
                     <div>
                         <h2 className="text-4xl font-extrabold font-outfit text-foreground tracking-tight">Trending Projects</h2>
-                        <p className="text-muted-foreground mt-3 text-lg font-light">Top rated and most viewed this week</p>
+                        <p className="text-muted-foreground mt-3 text-lg font-light">Top rated this week</p>
                     </div>
                     <Link to="/explore" className="text-primary hover:text-primary/80 font-medium flex items-center group mb-2 bg-primary/10 px-4 py-2 rounded-full transition-colors border border-primary/20">
                         View all <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
