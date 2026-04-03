@@ -13,7 +13,7 @@ Use this data to quickly fill out the "Submit Project" form during your presenta
 
 ### **Tech Stack**
 *(Copy and paste this exact comma-separated string)*
-React, TailwindCSS, Vite, Node.js, Express, MongoDB, JWT, Nodemailer
+React, TailwindCSS, Vite, Node.js, Express, MongoDB, JWT, Nodemailer, Qstash, Redis
 
 ### **Deployment Link**
 *(Can use localhost for demo if not deployed yet)*

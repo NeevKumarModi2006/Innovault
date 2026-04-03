@@ -1,3 +1,17 @@
+/**
+ * Project Routes
+ * ───────────────
+ * All CRUD operations for Projects, Reviews, and Bookmarks.
+ *
+ * Infrastructure integrations:
+ *   - Redis caching on read-heavy GET endpoints
+ *   - Cache invalidation on all mutation endpoints
+ *   - Kafka event publishing on all mutation endpoints (fire-and-forget)
+ *
+ * HIGH COHESION: Each route handler focuses on a single operation.
+ * LOW COUPLING:  Cache, events, and auth are injected as middleware/services.
+ */
+
 const router = require('express').Router();
 const mongoose = require('mongoose');
 const Project = require('../models/Project');
@@ -6,8 +20,35 @@ const Review = require('../models/Review');
 const ProjectView = require('../models/ProjectView');
 const verify = require('../middleware/verifyToken');
 
-// GET All Projects — Paginated, Filtered, Sorted
-router.get('/', async (req, res) => {
+// ── Infrastructure Services ────────────────────────────────
+const cacheMiddleware = require('../middleware/cache');
+const { clearCacheByPrefix } = require('../services/cacheService');
+const { publishEvent } = require('../events/producer');
+
+// Cache key prefixes (centralized for consistency)
+const CACHE_PREFIX = {
+    LIST: 'projects:list',
+    DETAIL: 'projects:detail',
+    REVIEWS: 'projects:reviews',
+};
+
+/**
+ * Invalidate all project-related caches.
+ * Called after any mutation (create, update, delete, review).
+ */
+async function invalidateProjectCaches(projectId) {
+    await Promise.all([
+        clearCacheByPrefix(CACHE_PREFIX.LIST),
+        clearCacheByPrefix(`${CACHE_PREFIX.DETAIL}:${projectId}`),
+        clearCacheByPrefix(`${CACHE_PREFIX.REVIEWS}:${projectId}`),
+    ]);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// GET All Projects — Paginated, Filtered, Sorted (CACHED)
+// ═══════════════════════════════════════════════════════════
+router.get('/', cacheMiddleware(CACHE_PREFIX.LIST), async (req, res) => {
     try {
         const { search, techStack, sort, page = 1, limit = 20 } = req.query;
         let query = { status: 'active' };
@@ -54,10 +95,20 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET Single Project (full fields)
-router.get('/:id', async (req, res) => {
+
+// ═══════════════════════════════════════════════════════════
+// GET Single Project (CACHED per project ID)
+// ═══════════════════════════════════════════════════════════
+router.get('/:id', async (req, res, next) => {
+    // Dynamic cache key per project — skip cache middleware for
+    // invalid IDs to avoid polluting the cache
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid project ID.' });
+    }
+    // Apply cache middleware dynamically with project-specific prefix
+    cacheMiddleware(`${CACHE_PREFIX.DETAIL}:${req.params.id}`)(req, res, next);
+}, async (req, res) => {
     try {
-        // Simply fetch the project without incrementing to prevent +2 dev mode bug
         const project = await Project.findById(req.params.id)
             .populate('owner', 'username role profilePicture bio');
 
@@ -69,7 +120,10 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// PUT Increment View
+
+// ═══════════════════════════════════════════════════════════
+// PUT Increment View (not cached — mutation)
+// ═══════════════════════════════════════════════════════════
 router.put('/:id/view', async (req, res) => {
     try {
         const viewerId = req.body.viewerId;
@@ -81,12 +135,9 @@ router.put('/:id/view', async (req, res) => {
             return res.json({ success: true, ignored: true });
         }
 
-        // Establish the unique tracker token for this anonymous or logged-in visitor
-        // We use X-Forwarded-For if behind a proxy, otherwise fallback to remote address.
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'anonymous';
         const identifier = (viewerId && viewerId !== 'undefined' && viewerId !== 'null') ? String(viewerId) : clientIp;
 
-        // Verify if this user or IP has viewed this project already
         const existingView = await ProjectView.findOne({
             projectId: project._id,
             viewerIdentifier: identifier
@@ -96,16 +147,18 @@ router.put('/:id/view', async (req, res) => {
             return res.json({ success: true, alreadyViewed: true });
         }
 
-        // Persist the unique project view tuple
         await ProjectView.create({
             projectId: project._id,
             viewerIdentifier: identifier
         });
 
         await Project.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+
+        // Invalidate detail cache (view count changed)
+        invalidateProjectCaches(req.params.id).catch(() => {});
+
         res.json({ success: true });
     } catch (err) {
-        // Capture duplicate key error just in case of parallel aggressive calls
         if (err.code === 11000) {
             return res.json({ success: true, alreadyViewed: true });
         }
@@ -113,12 +166,15 @@ router.put('/:id/view', async (req, res) => {
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
+// Upload middleware + rate limiter
+// ═══════════════════════════════════════════════════════════
 const upload = require('../middleware/upload');
 const rateLimit = require('express-rate-limit');
 
-// Strict Rate Limiting: Max 20 submits/edits per day per IP
 const projectSubmitLimiter = rateLimit({
-    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    windowMs: 24 * 60 * 60 * 1000,
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
@@ -126,7 +182,10 @@ const projectSubmitLimiter = rateLimit({
     message: { message: 'Daily limit of 20 project submissions/edits reached. Please try again tomorrow.' }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // POST Create Project (Verified Only)
+// ═══════════════════════════════════════════════════════════
 router.post('/', verify, projectSubmitLimiter, upload.single('logo'), async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
@@ -134,38 +193,52 @@ router.post('/', verify, projectSubmitLimiter, upload.single('logo'), async (req
             return res.status(403).json({ message: 'Only verified NITW users can post projects.' });
         }
 
-        // Parse techStack if it came as a comma-separated string from FormData
         let parsedTechStack = req.body.techStack;
         if (typeof parsedTechStack === 'string') {
             parsedTechStack = parsedTechStack.split(',').map(t => t.trim()).filter(t => t);
         }
 
+        // Determine logo identifier:
+        // Cloudinary → req.file.filename = public_id (e.g. "innovault/logos/abc123")
+        // Local disk → req.file.filename = "logo-1234567890.png"
+        const logoIdentifier = req.file ? req.file.filename : 'default-logo.png';
+
         const project = new Project({
             ...req.body,
             techStack: parsedTechStack,
             owner: req.user._id,
-            logoUrl: req.file ? req.file.filename : 'default-logo.png'
+            logoUrl: logoIdentifier
         });
 
         const savedProject = await project.save();
+
+        // ── Background: Cache + Events ─────────────────────
+        invalidateProjectCaches(savedProject._id).catch(() => {});
+        publishEvent('PROJECT_CREATED', {
+            projectId: savedProject._id,
+            title: savedProject.title,
+            owner: req.user._id,
+        }).catch(() => {});
+
         res.json(savedProject);
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // PUT Edit Project
+// ═══════════════════════════════════════════════════════════
 router.put('/:id', verify, projectSubmitLimiter, upload.single('logo'), async (req, res) => {
     try {
         const project = await Project.findById(req.params.id);
         if (!project) return res.status(404).json({ message: 'Project not found.' });
 
-        // Verify Owner
         if (project.owner.toString() !== req.user._id) {
             return res.status(403).json({ message: 'You are not authorized to edit this project.' });
         }
 
-        // Parse techStack
         let parsedTechStack = req.body.techStack;
         if (typeof parsedTechStack === 'string') {
             parsedTechStack = parsedTechStack.split(',').map(t => t.trim()).filter(t => t);
@@ -186,13 +259,24 @@ router.put('/:id', verify, projectSubmitLimiter, upload.single('logo'), async (r
             { new: true }
         );
 
+        // ── Background: Cache + Events ─────────────────────
+        invalidateProjectCaches(req.params.id).catch(() => {});
+        publishEvent('PROJECT_UPDATED', {
+            projectId: req.params.id,
+            title: updatedProject.title,
+            updatedBy: req.user._id,
+        }).catch(() => {});
+
         res.json(updatedProject);
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // DELETE Project
+// ═══════════════════════════════════════════════════════════
 router.delete('/:id', verify, async (req, res) => {
     try {
         const project = await Project.findById(req.params.id);
@@ -203,14 +287,25 @@ router.delete('/:id', verify, async (req, res) => {
         }
 
         await Project.findByIdAndDelete(req.params.id);
-        // Ideally we would also clean up Reviews, but deleting the project acts as a soft-cascade for UI since reviews query by projectId
+
+        // ── Background: Cache + Events ─────────────────────
+        invalidateProjectCaches(req.params.id).catch(() => {});
+        publishEvent('PROJECT_DELETED', {
+            projectId: req.params.id,
+            title: project.title,
+            deletedBy: req.user._id,
+        }).catch(() => {});
+
         res.json({ message: 'Project deleted successfully.' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // POST/PUT Review (Upsert Dual Tier Logic)
+// ═══════════════════════════════════════════════════════════
 router.post('/:id/reviews', verify, async (req, res) => {
     try {
         const { rating, comment, pros, cons } = req.body;
@@ -229,7 +324,6 @@ router.post('/:id/reviews', verify, async (req, res) => {
 
         let review = await Review.findOne({ user: userId, project: projectId });
         if (review) {
-            // Update existing review
             review.rating = rating;
             review.comment = comment;
             review.pros = pros;
@@ -238,7 +332,6 @@ router.post('/:id/reviews', verify, async (req, res) => {
             review.updatedAt = Date.now();
             await review.save();
         } else {
-            // Create new review
             review = new Review({
                 user: userId,
                 project: projectId,
@@ -274,13 +367,25 @@ router.post('/:id/reviews', verify, async (req, res) => {
             });
         }
 
+        // ── Background: Cache + Events ─────────────────────
+        invalidateProjectCaches(projectId).catch(() => {});
+        publishEvent('REVIEW_ADDED', {
+            reviewId: review._id,
+            projectId,
+            userId,
+            rating,
+        }).catch(() => {});
+
         res.json(review);
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // PUT Report Review
+// ═══════════════════════════════════════════════════════════
 router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
     try {
         const projectId = req.params.id;
@@ -290,11 +395,9 @@ router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
         const review = await Review.findById(reviewId);
         if (!review) return res.status(404).json({ message: 'Review not found.' });
 
-        // Add user to reportedBy if not already present
         if (!review.reportedBy.includes(userId)) {
             review.reportedBy.push(userId);
             
-            // Check if threshold is reached
             const threshold = parseInt(process.env.REPORT_THRESHOLD) || 20;
             let newlyDeleted = false;
 
@@ -305,7 +408,6 @@ router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
 
             await review.save();
 
-            // If it just got deleted, recalculate project stats
             if (newlyDeleted) {
                 const stats = await Review.aggregate([
                     { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
@@ -333,6 +435,9 @@ router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
                         verifiedRating: 0
                     });
                 }
+
+                // Invalidate cache on auto-deletion
+                invalidateProjectCaches(projectId).catch(() => {});
             }
             
             res.json({ message: 'Report submitted successfully.', newlyDeleted });
@@ -344,7 +449,10 @@ router.put('/:id/reviews/:reviewId/report', verify, async (req, res) => {
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // DELETE Review
+// ═══════════════════════════════════════════════════════════
 router.delete('/:id/reviews', verify, async (req, res) => {
     try {
         const projectId = req.params.id;
@@ -353,7 +461,6 @@ router.delete('/:id/reviews', verify, async (req, res) => {
         const deletedReview = await Review.findOneAndDelete({ user: userId, project: projectId });
         if (!deletedReview) return res.status(404).json({ message: 'Review not found.' });
 
-        // Recalculate Project Ratings (Aggregation)
         const stats = await Review.aggregate([
             { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
             {
@@ -375,12 +482,19 @@ router.delete('/:id/reviews', verify, async (req, res) => {
                 verifiedRating: stats[0].avgVerifiedRating || 0
             });
         } else {
-            // Reset if no reviews left
             await Project.findByIdAndUpdate(projectId, {
                 averageRating: 0,
                 verifiedRating: 0
             });
         }
+
+        // ── Background: Cache + Events ─────────────────────
+        invalidateProjectCaches(projectId).catch(() => {});
+        publishEvent('REVIEW_DELETED', {
+            reviewId: deletedReview._id,
+            projectId,
+            userId,
+        }).catch(() => {});
 
         res.json({ message: 'Review deleted successfully.' });
     } catch (err) {
@@ -388,7 +502,10 @@ router.delete('/:id/reviews', verify, async (req, res) => {
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // GET Bookmarked Projects
+// ═══════════════════════════════════════════════════════════
 router.get('/bookmarked/me', verify, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).populate({
@@ -401,7 +518,10 @@ router.get('/bookmarked/me', verify, async (req, res) => {
     }
 });
 
-// GET my review for a Project
+
+// ═══════════════════════════════════════════════════════════
+// GET My Review for a Project
+// ═══════════════════════════════════════════════════════════
 router.get('/:id/my-review', verify, async (req, res) => {
     try {
         const review = await Review.findOne({ project: req.params.id, user: req.user._id })
@@ -412,8 +532,17 @@ router.get('/:id/my-review', verify, async (req, res) => {
     }
 });
 
-// GET Reviews for a Project
-router.get('/:id/reviews', async (req, res) => {
+
+// ═══════════════════════════════════════════════════════════
+// GET Reviews for a Project (CACHED per project + filters)
+// ═══════════════════════════════════════════════════════════
+router.get('/:id/reviews', async (req, res, next) => {
+    // Dynamic cache key per project
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid project ID.' });
+    }
+    cacheMiddleware(`${CACHE_PREFIX.REVIEWS}:${req.params.id}`)(req, res, next);
+}, async (req, res) => {
     try {
         const { page = 1, limit = 20, sort, filter } = req.query;
         const projectId = req.params.id;
@@ -439,7 +568,6 @@ router.get('/:id/reviews', async (req, res) => {
             .skip(skip)
             .limit(parseInt(limit));
 
-        // Background aggregation for overall project stats regardless of filter
         const statsAggregation = await Review.aggregate([
             { $match: { project: new mongoose.Types.ObjectId(projectId), isDeleted: { $ne: true } } },
             {
@@ -479,7 +607,10 @@ router.get('/:id/reviews', async (req, res) => {
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
 // Toggle Bookmark
+// ═══════════════════════════════════════════════════════════
 router.put('/:id/bookmark', verify, async (req, res) => {
     try {
         const projectId = req.params.id;
@@ -497,6 +628,10 @@ router.put('/:id/bookmark', verify, async (req, res) => {
         }
 
         await user.save();
+
+        // Invalidate detail cache (bookmarksCount changed)
+        invalidateProjectCaches(projectId).catch(() => {});
+
         res.json(user.bookmarks);
     } catch (err) {
         res.status(500).json({ message: err.message });

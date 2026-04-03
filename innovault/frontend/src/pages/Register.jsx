@@ -35,6 +35,17 @@ const Register = () => {
         if (!email) {
             return setError('Please enter an email address first.');
         }
+
+        const errors = [];
+        if (password.length < 8) errors.push('be at least 8 characters long');
+        if (!/[A-Z]/.test(password)) errors.push('contain an uppercase letter');
+        if (!/[a-z]/.test(password)) errors.push('contain a lowercase letter');
+        if (!/\d/.test(password)) errors.push('contain a number');
+        if (!/[@$!%*?&]/.test(password)) errors.push('contain a special character (@$!%*?&)');
+
+        if (errors.length > 0) {
+            return setError(`Password must ${errors.join(' and ')}.`);
+        }
         setSendingOtp(true);
         setError('');
         setSuccessMsg('');

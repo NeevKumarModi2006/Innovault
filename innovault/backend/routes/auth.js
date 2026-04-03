@@ -5,11 +5,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
+const validatePassword = require('../middleware/validatePassword');
+const { incrementLoginAttempts, getLoginAttempts, clearLoginAttempts } = require('../services/cacheService');
+ 
 // Setup Nodemailer Transporter
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: process.env.SMTP_PORT || 587,
-    secure: false, // true for 465, false for other ports
+    secure: false,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
@@ -41,15 +44,15 @@ router.post('/send-otp', async (req, res) => {
             { upsert: true, new: true }
         );
 
-        // Send Email
+        // Send Email Synchronously
         const mailOptions = {
             from: process.env.FROM_EMAIL || 'no-reply@innovault.com',
             to: email,
-            subject: 'Innovault Email Verification OTP',
+            subject: `Innovault ${type === 'reset' ? 'Password Reset' : 'Email Verification'} OTP`,
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
                     <h2>Welcome to Innovault!</h2>
-                    <p>Your email verification code is:</p>
+                    <p>Your verification code is:</p>
                     <h1 style="color: #4CAF50; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
                     <p>This code will expire in 10 minutes.</p>
                 </div>
@@ -65,7 +68,7 @@ router.post('/send-otp', async (req, res) => {
 });
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', validatePassword, async (req, res) => {
     try {
         const { username, email, password, otp } = req.body;
 
@@ -80,7 +83,7 @@ router.post('/register', async (req, res) => {
         if (emailExist) return res.status(400).send('Email already exists');
 
         // Hash password
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(11); // Professional cost factor
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // Determine Role based on Domain (catches @student.nitw.ac.in as well)
@@ -93,7 +96,7 @@ router.post('/register', async (req, res) => {
             email,
             password: hashedPassword,
             role: role
-        });
+        }); 
 
         const savedUser = await user.save();
         
@@ -121,13 +124,29 @@ router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Check Redis for brute-force lock BEFORE querying DB or comparing passwords
+        const attempts = await getLoginAttempts(email);
+        if (attempts >= 5) {
+            return res.status(429).send('Account temporarily locked due to too many failed login attempts. Please try again in 15 minutes.');
+        }
+
         // Check if user exists
         const user = await User.findOne({ email });
-        if (!user) return res.status(400).send('Email is not found');
+        if (!user) {
+            // Even if user doesn't exist, we track the attempt to prevent email enumeration attacks backing brute forcing
+            await incrementLoginAttempts(email);
+            return res.status(400).send('Invalid email or password');
+        }
 
         // Check password
         const validPass = await bcrypt.compare(password, user.password);
-        if (!validPass) return res.status(400).send('Invalid password');
+        if (!validPass) {
+            await incrementLoginAttempts(email);
+            return res.status(400).send('Invalid email or password');
+        }
+
+        // Clear attempts on success
+        await clearLoginAttempts(email);
 
         // Create and assign token
         const token = jwt.sign(
@@ -142,7 +161,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Reset Password
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', validatePassword, async (req, res) => {
     try {
         const { email, otp, newPassword } = req.body;
 
@@ -157,7 +176,7 @@ router.post('/reset-password', async (req, res) => {
         if (!user) return res.status(400).send('No account found with this email');
 
         // Hash new password
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(11);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
         // Update user
@@ -175,3 +194,4 @@ router.post('/reset-password', async (req, res) => {
 });
 
 module.exports = router;
+ 

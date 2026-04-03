@@ -280,7 +280,7 @@ const EditProject = () => {
                             />
                             {existingLogo && !logo ? (
                                 <img
-                                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${existingLogo}`}
+                                    src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/images/${encodeURIComponent(existingLogo)}`}
                                     alt="Current Logo"
                                     className="w-16 h-16 rounded-xl border border-border object-cover"
                                 />

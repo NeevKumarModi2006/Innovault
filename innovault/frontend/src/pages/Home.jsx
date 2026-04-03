@@ -77,7 +77,7 @@ const Home = () => {
                         {user ? (
                             <>
                                 <motion.h1 variants={itemVariants} className="text-6xl md:text-8xl font-extrabold font-outfit text-foreground tracking-tight mb-6">
-                                    Welcome back, <br className="hidden md:block" />
+                                    Welcome to InnoVault, <br className="hidden md:block" />
                                     <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
                                         {user.username}
                                     </span>

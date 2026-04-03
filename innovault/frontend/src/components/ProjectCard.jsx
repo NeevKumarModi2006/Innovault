@@ -20,7 +20,7 @@ const ProjectCard = ({ project }) => {
                         <img
                             src={
                                 project.logoUrl && project.logoUrl !== 'default-logo.png'
-                                    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}`
+                                    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/images/${encodeURIComponent(project.logoUrl)}`
                                     : 'https://via.placeholder.com/800x400/f8f8f8/888888?text=InnoVault'
                             }
                             alt={project.title}

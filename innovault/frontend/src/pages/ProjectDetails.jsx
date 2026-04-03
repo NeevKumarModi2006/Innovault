@@ -316,7 +316,7 @@ const ProjectDetails = () => {
                     <img
                         src={
                             project.logoUrl && project.logoUrl !== 'default-logo.png'
-                                ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/uploads/${project.logoUrl}`
+                                ? `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/images/${encodeURIComponent(project.logoUrl)}`
                                 : 'https://via.placeholder.com/1400x500/f0f0f0/aaaaaa?text=InnoVault'
                         }
                         alt="Project banner"

@@ -57,8 +57,15 @@ const ForgotPassword = () => {
         setError('');
         setSuccessMsg('');
 
-        if (newPassword.length < 8) {
-            return setError('Password must be at least 8 characters long.');
+        const errors = [];
+        if (newPassword.length < 8) errors.push('be at least 8 characters long');
+        if (!/[A-Z]/.test(newPassword)) errors.push('contain an uppercase letter');
+        if (!/[a-z]/.test(newPassword)) errors.push('contain a lowercase letter');
+        if (!/\d/.test(newPassword)) errors.push('contain a number');
+        if (!/[@$!%*?&]/.test(newPassword)) errors.push('contain a special character (@$!%*?&)');
+
+        if (errors.length > 0) {
+            return setError(`Password must ${errors.join(' and ')}.`);
         }
         if (newPassword !== confirmPassword) {
             return setError('Passwords do not match.');

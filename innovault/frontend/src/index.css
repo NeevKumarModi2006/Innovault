@@ -5,6 +5,8 @@
 @tailwind utilities;
 
 @layer base {
+
+  /* .baseline { */
   :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
@@ -28,32 +30,435 @@
     --radius: 0.625rem;
   }
 
+  /* Dark: deep navy/violet bg — violet is "white", cyan is "yellow" equivalent
+     white → violet-tinted light  |  black (dark bg) → navy-violet  |  text-on-violet → cyan */
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
+    /* :root { */
+    --background: oklch(0.13 0.04 275);
+    /* black → deep violet-navy */
+    --foreground: oklch(0.94 0.06 195);
+    /* white → light cyan-tinted */
+
+    --card: oklch(0.17 0.05 275);
+    /* black → slightly lighter navy */
+    --card-foreground: oklch(0.94 0.06 195);
+    /* white → cyan-light */
+
+    --popover: oklch(0.17 0.05 275);
+    --popover-foreground: oklch(0.94 0.06 195);
+
+    --primary: oklch(0.65 0.28 290);
+    /* vivid violet — unchanged */
+    --primary-foreground: oklch(0.95 0.08 195);
+    /* white on violet → light cyan */
+
+    --secondary: oklch(0.24 0.06 275);
+    /* dark surface → violet-dark */
+    --secondary-foreground: oklch(0.88 0.06 195);
+    /* text on dark → cyan-light */
+
+    --muted: oklch(0.21 0.05 275);
+    /* dark muted → violet-dark */
+    --muted-foreground: oklch(0.66 0.07 195);
+    /* gray text → cyan-tinted */
+
+    --accent: oklch(0.78 0.20 195);
+    /* electric cyan — unchanged */
+    --accent-foreground: oklch(0.14 0.06 275);
+    /* black on cyan → dark violet */
+
+    --destructive: oklch(0.58 0.22 25);
+    --destructive-foreground: oklch(0.95 0.06 195);
+    /* white on red → cyan-tinted */
+
+    --border: oklch(0.28 0.06 275);
+    /* gray border → violet-tinted */
+    --input: oklch(0.22 0.05 275);
+    /* input bg → violet-dark */
+    --ring: oklch(0.65 0.28 290);
+  }
+
+  /* softMetallicGray: teal is "white side", amber is "yellow side"
+     white → teal-light  |  black → amber-dark  |  text-on-teal → light amber  |  text-on-amber → dark teal */
+  .softMetallicGray {
+    /* :root { */
+    --background: oklch(0.97 0.04 190);
+    /* white → pale teal */
+    --foreground: oklch(0.14 0.06 65);
+    /* black → dark amber/golden */
+
+    --card: oklch(0.985 0.02 190);
+    /* white → barely-teal card */
+    --card-foreground: oklch(0.14 0.06 65);
+    /* black → dark amber */
+
+    --popover: oklch(0.985 0.02 190);
+    --popover-foreground: oklch(0.14 0.06 65);
+
+    --primary: oklch(0.48 0.14 190);
+    /* teal — unchanged */
+    --primary-foreground: oklch(0.96 0.07 75);
+    /* white on teal → light amber */
+
+    --secondary: oklch(0.92 0.08 75);
+    /* amber-light surface */
+    --secondary-foreground: oklch(0.18 0.07 190);
+    /* black on amber → dark teal */
+
+    --muted: oklch(0.93 0.04 190);
+    /* gray → teal-tinted */
+    --muted-foreground: oklch(0.52 0.07 190);
+    /* gray text → teal-tinted */
+
+    --accent: oklch(0.82 0.18 75);
+    /* warm amber — unchanged */
+    --accent-foreground: oklch(0.16 0.07 190);
+    /* black on amber → dark teal */
+
+    --destructive: oklch(0.58 0.22 25);
+    --destructive-foreground: oklch(0.96 0.06 75);
+    /* white on red → amber-tinted */
+
+    --border: oklch(0.87 0.05 190);
+    /* gray → teal border */
+    --input: oklch(0.87 0.05 190);
+    --ring: oklch(0.48 0.14 190);
+  }
+
+  /* silverMetallic: slate-blue is "white side", coral is "yellow side"
+     white → blue-tinted  |  black → deep blue-dark  |  text-on-blue → light coral  |  text-on-coral → dark blue */
+  .silverMetallic {
+    /* :root { */
+    --background: oklch(0.97 0.05 255);
+    /* white → pale blue */
+    --foreground: oklch(0.13 0.06 240);
+    /* black → deep blue-dark */
+
+    --card: oklch(0.985 0.03 255);
+    /* white → barely-blue card */
+    --card-foreground: oklch(0.13 0.06 240);
+    /* black → deep blue */
+
+    --popover: oklch(0.985 0.03 255);
+    --popover-foreground: oklch(0.13 0.06 240);
+
+    --primary: oklch(0.45 0.14 255);
+    /* slate-blue — unchanged */
+    --primary-foreground: oklch(0.96 0.07 20);
+    /* white on blue → light coral */
+
+    --secondary: oklch(0.92 0.09 20);
+    /* coral-light surface */
+    --secondary-foreground: oklch(0.16 0.07 255);
+    /* black on coral → dark blue */
+
+    --muted: oklch(0.93 0.04 255);
+    /* gray → blue-tinted */
+    --muted-foreground: oklch(0.52 0.07 255);
+    /* gray text → blue-tinted */
+
+    --accent: oklch(0.75 0.18 20);
+    /* soft coral — unchanged */
+    --accent-foreground: oklch(0.14 0.07 255);
+    /* black on coral → dark blue */
+
+    --destructive: oklch(0.60 0.25 27);
+    --destructive-foreground: oklch(0.96 0.06 20);
+    /* white on red → coral-tinted */
+
+    --border: oklch(0.87 0.05 255);
+    /* gray → blue border */
+    --input: oklch(0.87 0.05 255);
+    --ring: oklch(0.45 0.14 255);
+  }
+
+  /* blueMetallic: ocean-blue is "white side", sky-cyan is "yellow side"
+     white → blue-tinted  |  black → deep cyan-dark  |  text-on-blue → light cyan  |  text-on-cyan → dark blue */
+  .blueMetallic {
+    /* :root { */
+    --background: oklch(0.97 0.05 235);
+    /* white → pale blue */
+    --foreground: oklch(0.13 0.06 215);
+    /* black → deep cyan-blue */
+
+    --card: oklch(0.985 0.03 240);
+    /* white → barely-blue card */
+    --card-foreground: oklch(0.13 0.06 215);
+    /* black → deep cyan-blue */
+
+    --popover: oklch(0.985 0.03 240);
+    --popover-foreground: oklch(0.13 0.06 215);
+
+    --primary: oklch(0.48 0.18 240);
+    /* ocean blue — unchanged */
+    --primary-foreground: oklch(0.95 0.08 210);
+    /* white on blue → light cyan */
+
+    --secondary: oklch(0.91 0.09 210);
+    /* cyan-light surface */
+    --secondary-foreground: oklch(0.16 0.07 240);
+    /* black on cyan → dark blue */
+
+    --muted: oklch(0.93 0.04 235);
+    /* gray → blue-tinted */
+    --muted-foreground: oklch(0.51 0.07 235);
+    /* gray text → blue-tinted */
+
+    --accent: oklch(0.78 0.16 210);
+    /* sky cyan — unchanged */
+    --accent-foreground: oklch(0.14 0.07 240);
+    /* black on cyan → dark blue */
+
+    --destructive: oklch(0.58 0.24 27);
+    --destructive-foreground: oklch(0.95 0.07 210);
+    /* white on red → cyan-tinted */
+
+    --border: oklch(0.87 0.05 235);
+    /* gray → blue border */
+    --input: oklch(0.87 0.05 235);
+    --ring: oklch(0.48 0.18 240);
+  }
+
+  /* warmNatural: amber is "white side", sage is "yellow side"
+     white → amber-warm  |  black → deep sage-dark  |  text-on-amber → light sage  |  text-on-sage → dark amber */
+  .warmNatural {
+    /* :root { */
+    --background: oklch(0.97 0.05 80);
+    /* white → warm amber-white */
+    --foreground: oklch(0.14 0.06 145);
+    /* black → deep sage-dark */
+
+    --card: oklch(0.985 0.03 80);
+    /* white → barely-amber card */
+    --card-foreground: oklch(0.14 0.06 145);
+    /* black → deep sage */
+
+    --popover: oklch(0.985 0.03 80);
+    --popover-foreground: oklch(0.14 0.06 145);
+
+    --primary: oklch(0.55 0.18 65);
+    /* earthy amber — unchanged */
+    --primary-foreground: oklch(0.95 0.07 145);
+    /* white on amber → light sage */
+
+    --secondary: oklch(0.91 0.09 145);
+    /* sage-light surface */
+    --secondary-foreground: oklch(0.18 0.07 65);
+    /* black on sage → dark amber */
+
+    --muted: oklch(0.93 0.04 80);
+    /* gray → amber-tinted */
+    --muted-foreground: oklch(0.51 0.06 80);
+    /* gray text → amber-tinted */
+
+    --accent: oklch(0.62 0.14 145);
+    /* sage green — unchanged */
+    --accent-foreground: oklch(0.16 0.07 65);
+    /* black on sage → dark amber */
+
+    --destructive: oklch(0.60 0.25 25);
+    --destructive-foreground: oklch(0.95 0.06 145);
+    /* white on red → sage-tinted */
+
+    --border: oklch(0.87 0.05 80);
+    /* gray → amber border */
+    --input: oklch(0.87 0.05 80);
+    --ring: oklch(0.55 0.18 65);
+  }
+
+  /* darkMetallic: charcoal-green is "white side", emerald is "yellow side"
+     white → green-light  |  black → deep emerald-dark  |  text-on-charcoal → light emerald  |  text-on-emerald → dark charcoal */
+  .darkMetallic {
+    /* :root { */
+    --background: oklch(0.97 0.04 155);
+    /* white → pale green */
+    --foreground: oklch(0.12 0.06 160);
+    /* black → very dark green */
+
+    --card: oklch(0.985 0.02 155);
+    /* white → barely-green card */
+    --card-foreground: oklch(0.12 0.06 160);
+    /* black → very dark green*/
+
+    --popover: oklch(0.985 0.02 155);
+    --popover-foreground: oklch(0.12 0.06 160);
+
+    --primary: oklch(0.22 0.04 160);
+    /* charcoal-green — unchanged */
+    --primary-foreground: oklch(0.95 0.07 155);
+    /* white on charcoal → light emerald */
+
+    --secondary: oklch(0.91 0.09 155);
+    /* emerald-light surface */
+    --secondary-foreground: oklch(0.16 0.06 160);
+    /* black on emerald → dark charcoal */
+
+    --muted: oklch(0.93 0.03 155);
+    /* gray → green-tinted */
+    --muted-foreground: oklch(0.50 0.06 155);
+    /* gray text → green-tinted */
+
+    --accent: oklch(0.60 0.20 155);
+    /* emerald — unchanged */
+    --accent-foreground: oklch(0.14 0.06 160);
+    /* black on emerald → dark charcoal */
+
+    --destructive: oklch(0.58 0.25 27);
+    --destructive-foreground: oklch(0.95 0.06 155);
+    /* white on red → emerald-tinted */
+
+    --border: oklch(0.87 0.04 155);
+    /* gray → green border */
+    --input: oklch(0.87 0.04 155);
+    --ring: oklch(0.60 0.20 155);
+  }
+
+  /* greenRed: LITERAL green background + LITERAL red text */
+  .greenRed {
+    /* :root { */
+    --background: oklch(0.92 0.18 145);
+    /* GREEN background */
+    --foreground: oklch(0.38 0.26 25);
+    /* RED text */
+
+    --card: oklch(0.95 0.13 145);
+    /* lighter green card surface */
+    --card-foreground: oklch(0.38 0.26 25);
+    /* red text on card */
+
+    --popover: oklch(0.95 0.13 145);
+    --popover-foreground: oklch(0.38 0.26 25);
+
+    --primary: oklch(0.50 0.28 25);
+    /* vivid RED button */
+    --primary-foreground: oklch(0.94 0.16 145);
+    /* GREEN text on red */
+
+    --secondary: oklch(0.87 0.20 145);
+    /* deeper green surface */
+    --secondary-foreground: oklch(0.32 0.26 25);
+    /* deep red on green */
+
+    --muted: oklch(0.90 0.09 145);
+    /* soft green muted surface */
+    --muted-foreground: oklch(0.55 0.16 25);
+    /* medium red muted text */
+
+    --accent: oklch(0.78 0.23 150);
+    /* rich deep green accent */
+    --accent-foreground: oklch(0.30 0.26 25);
+    /* deep red on green */
+
+    --destructive: oklch(0.48 0.28 30);
+    /* darker red for errors */
+    --destructive-foreground: oklch(0.94 0.14 145);
+    /* green text on red */
+
+    --border: oklch(0.83 0.17 145);
+    /* green border */
+    --input: oklch(0.83 0.17 145);
+    --ring: oklch(0.50 0.28 25);
+    /* red ring/focus */
+    --radius: 0.625rem;
+  }
+
+  /* blueOrange: LITERAL orange background + LITERAL blue text */
+  .blueOrange {
+    /* :root { */
+    --background: oklch(0.91 0.18 50);
+    /* ORANGE background */
+    --foreground: oklch(0.30 0.24 250);
+    /* BLUE text */
+
+    --card: oklch(0.94 0.13 50);
+    /* lighter orange card surface */
+    --card-foreground: oklch(0.30 0.24 250);
+    /* blue text on card */
+
+    --popover: oklch(0.94 0.13 50);
+    --popover-foreground: oklch(0.30 0.24 250);
+
+    --primary: oklch(0.48 0.26 250);
+    /* vivid BLUE button */
+    --primary-foreground: oklch(0.93 0.17 50);
+    /* ORANGE text on blue */
+
+    --secondary: oklch(0.86 0.21 45);
+    /* deeper orange surface */
+    --secondary-foreground: oklch(0.26 0.24 250);
+    /* deep blue on orange */
+
+    --muted: oklch(0.90 0.09 50);
+    /* soft orange muted surface */
+    --muted-foreground: oklch(0.50 0.16 250);
+    /* medium blue muted text */
+
+    --accent: oklch(0.76 0.22 42);
+    /* rich amber-orange accent */
+    --accent-foreground: oklch(0.24 0.24 250);
+    /* deep blue on amber */
+
+    --destructive: oklch(0.55 0.26 20);
+    /* deep red (suitable extra color) */
+    --destructive-foreground: oklch(0.93 0.14 50);
+    /* orange text on red */
+
+    --border: oklch(0.82 0.17 48);
+    /* orange-amber border */
+    --input: oklch(0.82 0.17 48);
+    --ring: oklch(0.48 0.26 250);
+    /* blue ring/focus */
+    --radius: 0.625rem;
+  }
+
+  /* purpleYellow: LITERAL yellow background + LITERAL purple text */
+  /* :root { */
+  .purpleYellow {
+    --background: oklch(0.93 0.18 88);
+    /* YELLOW background */
+    --foreground: oklch(0.28 0.26 300);
+    /* PURPLE text */
+
+    --card: oklch(0.96 0.12 88);
+    /* lighter yellow card surface */
+    --card-foreground: oklch(0.28 0.26 300);
+    /* purple text on card */
+
+    --primary: oklch(0.48 0.28 300);
+    /* vivid PURPLE button */
+    --primary-foreground: oklch(0.95 0.16 88);
+    /* YELLOW text on purple */
+
+    --secondary: oklch(0.88 0.20 82);
+    /* golden-yellow secondary surface */
+    --secondary-foreground: oklch(0.25 0.26 300);
+    /* deep purple on golden */
+
+    --accent: oklch(0.80 0.22 78);
+    /* rich gold accent */
+    --accent-foreground: oklch(0.22 0.26 300);
+    /* deep purple on gold */
+
+    --muted: oklch(0.91 0.08 88);
+    /* soft yellow muted surface */
+    --muted-foreground: oklch(0.52 0.16 300);
+    /* medium purple muted text */
+
+    --destructive: oklch(0.58 0.25 25);
+    /* red — suitable extra color */
+    --destructive-foreground: oklch(0.95 0.14 88);
+    /* yellow text on red */
+
+    --border: oklch(0.84 0.16 85);
+    /* yellow-gold border */
+    --ring: oklch(0.48 0.28 300);
+    /* purple ring/focus */
   }
 
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
@@ -63,12 +468,17 @@
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   @apply bg-background;
 }
+
 ::-webkit-scrollbar-thumb {
-  background-color: var(--muted-foreground); opacity: 0.3 rounded-full;
+  background-color: var(--muted-foreground);
+  opacity: 0.3 rounded-full;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted-foreground); opacity: 0.5;
+  background-color: var(--muted-foreground);
+  opacity: 0.5;
 }
