@@ -4,21 +4,19 @@ const Otp = require('../models/Otp');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const sgTransport = require('nodemailer-sendgrid');
+const dns = require('dns');
+
+// Force IPv4 DNS resolution first to prevent ENETUNREACH on Render's IPv6 network
+dns.setDefaultResultOrder('ipv4first');
 
 const validatePassword = require('../middleware/validatePassword');
 const { incrementLoginAttempts, getLoginAttempts, clearLoginAttempts } = require('../services/cacheService');
  
-// Setup Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    family: 4,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+// Setup Nodemailer Transporter using SendGrid API Wait
+const transporter = nodemailer.createTransport(sgTransport({
+    apiKey: process.env.SENDGRID_API_KEY
+}));
 
 // Send OTP
 router.post('/send-otp', async (req, res) => {
