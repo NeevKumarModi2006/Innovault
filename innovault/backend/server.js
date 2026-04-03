@@ -65,7 +65,7 @@ const limiter = rateLimit({
     message: { message: 'Too many requests, please try again later.' }
 });
 app.use('/api', limiter);
-
+ 
 // Database Connection
 mongoose.connect(process.env.DATABASE_URL || 'mongodb://localhost:27017/innovault')
     .then(() => console.log('Connected to Innovault Database'))
