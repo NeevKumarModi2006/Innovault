@@ -34,7 +34,10 @@ const EditProject = () => {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [error, setError] = useState('');
+    const [fileError, setFileError] = useState('');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
     useEffect(() => {
         const fetchProject = async () => {
@@ -60,7 +63,19 @@ const EditProject = () => {
     }, [id]);
 
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleFileChange = (e) => setLogo(e.target.files[0]);
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > MAX_FILE_SIZE) {
+                setFileError('File size must be less than 5 MB');
+                setLogo(null);
+                e.target.value = ''; // Reset input
+            } else {
+                setFileError('');
+                setLogo(file);
+            }
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -269,7 +284,7 @@ const EditProject = () => {
                     <FormField label="Update Project Logo" hint="PNG, JPG — max 5MB">
                         <label
                             htmlFor="logo-upload"
-                            className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-foreground hover:bg-muted/40 transition-all duration-200 group"
+                            className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed ${fileError ? 'border-destructive' : 'border-border'} rounded-xl p-8 cursor-pointer hover:border-foreground hover:bg-muted/40 transition-all duration-200 group`}
                         >
                             <input
                                 type="file"
@@ -285,17 +300,18 @@ const EditProject = () => {
                                     className="w-16 h-16 rounded-xl border border-border object-cover"
                                 />
                             ) : (
-                                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors">
-                                    <Upload className="w-5 h-5 text-muted-foreground group-hover:text-background" />
+                                <div className={`w-12 h-12 rounded-xl bg-muted flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-colors ${fileError ? 'bg-destructive/10' : ''}`}>
+                                    <Upload className={`w-5 h-5 group-hover:text-background ${fileError ? 'text-destructive' : 'text-muted-foreground'}`} />
                                 </div>
                             )}
                             <div className="text-center">
-                                <p className="text-sm font-medium text-foreground">
+                                <p className={`text-sm font-medium ${fileError ? 'text-destructive' : 'text-foreground'}`}>
                                     {logo ? logo.name : existingLogo ? 'Click to replace logo' : 'Click to upload'}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-0.5">or drag and drop</p>
                             </div>
                         </label>
+                        {fileError && <p className="text-sm font-medium text-destructive mt-2 text-center">{fileError}</p>}
                     </FormField>
 
                     {/* Actions */}
