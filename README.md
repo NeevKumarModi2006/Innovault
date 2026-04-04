@@ -1,127 +1,113 @@
-# 🚀 Innovault
+# Innovault
 
-**Innovault** is a modern platform designed for developers and creators to showcase, explore, and discover innovative projects. Built with a powerful MERN-stack architecture, it features a sleek, animated user interface and a highly scalable backend equipped with caching, queuing, and secure media management.
+Innovault is a modern MERN-stack platform designed for students and innovators to showcase, explore, and discover innovative projects within an institutional environment. It serves as a persistent institutional memory for innovation, preventing the loss of valuable project ideas across academic cohorts.
 
----
-
-## ✨ Features
-
-- **Project Discovery:** Browse, search, and discover projects. 
-- **Trending Projects:** Dynamically displays top-rated and most-viewed projects using a custom rating algorithm.
-- **User Authentication:** Secure signup and login using JWT (JSON Web Tokens) and encrypted passwords (Bcrypt).
-- **Rich Media & File Uploads:** Seamless image uploads powered by Cloudinary.
-- **Modern UI/UX:** Responsive, beautifully animated interfaces using React, Framer Motion, and Tailwind CSS.
-- **High Performance:** Backend optimized with Redis caching, Kafka for event streaming, and QStash for reliable message queuing.
+**Developed by:** Squad 456 (Neev Modi, Sai Charan Kumar, Venkata Charan)  
+**Institution:** NIT Warangal (NITW)  
+**Status:** Production Ready
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Features
+
+* **Secure Authentication:** JWT-based signup/login with OTP email verification and bcrypt password hashing.
+* **Project Discovery:** Browse, search, and discover projects with advanced filtering and sorting.
+* **Rating & Review System:** Community-driven ratings with verified vs. public review distinction.
+* **Trending Dashboard:** Dynamically displays top-rated and most-viewed projects using custom algorithms.
+* **Rich Media Support:** Seamless image uploads powered by Cloudinary with optimized storage.
+* **Modern UI/UX:** Responsive, beautifully animated interfaces using React, Framer Motion, and Tailwind CSS.
+* **High Performance:** Backend optimized with Redis caching and async event processing via QStash.
+* **Institutional Security:** Domain-based role assignment (@nitw.ac.in = Verified user).
+* **Data Persistence:** 5-year automatic data retention and archival policy.
+
+---
+
+## 🛠 Tech Stack
 
 ### Frontend
-- **Framework:** React 18 (via Vite)
-- **Styling:** Tailwind CSS
-- **Animations:** Framer Motion
-- **Icons:** Lucide React
-- **Routing:** React Router v6
-- **Content Rendering:** React Markdown
+* Framework: React 18 (via Vite)
+* Styling: Tailwind CSS with dark theme
+* Animations: Framer Motion
+* UI Components: Lucide React icons
+* Routing: React Router v6
+* Deployment: Vercel
 
 ### Backend
-- **Runtime Environment:** Node.js
-- **Framework:** Express.js
-- **Database:** MongoDB (Mongoose)
-- **Authentication:** JWT & bcryptjs
-- **Caching & Queues:** Redis, Kafka (KafkaJS), Upstash QStash
-- **Media Storage:** Cloudinary & Multer
-- **Security & Optimization:** Helmet, Express Rate Limit, Compression
+* Runtime: Node.js (v16+)
+* Framework: Express.js
+* Database: MongoDB with Mongoose ODM
+* Caching: Redis (Upstash)
+* Events: Upstash QStash
+* Media Storage: Cloudinary + Multer
+* Deployment: Render
 
 ---
 
-## 🚀 Getting Started
+## 🏗 Project Structure
 
-### Prerequisites
-Make sure you have the following installed on your machine:
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [MongoDB](https://www.mongodb.com/)
-- [Redis](https://redis.io/) (Local or Upstash)
-- Cloudinary Account (for image uploads)
-- Kafka environment (optional depending on local setup)
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/NeevKumarModi2006/Innovault.git
-cd Innovault
-```
-
-### 2. Backend Setup
-Navigate to the backend directory and install dependencies:
-```bash
-cd innovault/backend
-npm install
-```
-
-Create a `.env` file in the `backend` directory and add your environment variables:
-```env
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-CLOUDINARY_CLOUD_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-REDIS_URL=your_redis_url
-# Add Kafka and QStash variables as needed
-```
-
-Start the backend development server:
-```bash
-npm run dev
-```
-
-### 3. Frontend Setup
-Open a new terminal, navigate to the frontend directory, and install dependencies:
-```bash
-cd innovault/frontend
-npm install
-```
-
-Start the Vite development server:
-```bash
-npm run dev
-```
-
-The frontend will be available at `http://localhost:5173`.
-
----
-
-## 📂 Project Structure
-
-```text
 Innovault/
 ├── innovault/
 │   ├── backend/
-│   │   ├── server.js        # Entry point for the Express server
-│   │   ├── package.json     # Backend dependencies and scripts
-│   │   └── ...              # Controllers, routes, models, config
+│   │   ├── server.js (Express server)
+│   │   ├── config/ (Redis, QStash, Cloudinary)
+│   │   ├── middleware/ (Auth, JWT, Validation)
+│   │   ├── routes/ (Auth, Projects, Webhooks)
+│   │   ├── models/ (Mongoose Schemas)
+│   │   └── services/ (Redis cache logic)
 │   └── frontend/
 │       ├── src/
-│       │   ├── pages/       # React page components (e.g., Home, Explore, Login)
-│       │   ├── components/  # Reusable UI components (e.g., ProjectCard)
-│       │   ├── context/     # React context providers (e.g., AuthContext)
-│       │   ├── services/    # API configuration (Axios)
-│       │   └── App.jsx
-│       ├── package.json     # Frontend dependencies and scripts
-│       └── vite.config.js   # Vite configuration
-```
+│       │   ├── pages/ (Home, Login, Explore, Dashboard, etc.)
+│       │   ├── components/ (Navbar, Cards, Buttons)
+│       │   └── context/ (AuthContext state)
+└── README.md
 
 ---
 
-## 🛑 Contributing & Usage
+## 🏁 Getting Started
 
-**This project is closed for external contributions and edits.** 
+### 1. Clone Repository
+git clone https://github.com/NeevKumarModi2006/Innovault.git
+cd Innovault
 
-It is maintained solely by the repository owner. Pull requests, modifications, and unauthorized redistributions are not permitted. 
+### 2. Backend Setup
+cd innovault/backend
+npm install
+
+Create a .env file:
+PORT=5000
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_secret_key
+REDIS_URL=your_redis_url
+SENDGRID_API_KEY=your_key
+CLOUDINARY_CLOUD_NAME=your_name
+
+npm run dev
+
+### 3. Frontend Setup
+cd ../frontend
+npm install
+
+Create a .env file:
+VITE_API_URL=http://localhost:5000/api
+
+npm run dev
 
 ---
 
-## 📝 License
+## 📡 Key API Endpoints
 
-**All rights reserved.** This code may not be modified, copied, or distributed by others without explicit permission from the author.
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| POST | /api/auth/register | Create account with OTP |
+| POST | /api/auth/login | Secure JWT-based login |
+| GET | /api/projects | List projects with filters |
+| POST | /api/projects | Create a new project |
+| PUT | /api/projects/:id/bookmark | Toggle project bookmark |
+
+
+---
+
+## 📜 License
+All rights reserved. This code is proprietary and may not be modified, copied, or distributed without explicit written permission from the authors (Squad 456).
+
+**Last Updated:** April 4, 2024 | **Version:** 1.0 (Production Ready)
