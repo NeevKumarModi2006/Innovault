@@ -45,6 +45,7 @@ Innovault is a modern MERN-stack platform designed for students and innovators t
 
 ## 🏗 Project Structure
 
+```text
 Innovault/
 ├── innovault/
 │   ├── backend/
@@ -60,7 +61,7 @@ Innovault/
 │       │   ├── components/ (Navbar, Cards, Buttons)
 │       │   └── context/ (AuthContext state)
 └── README.md
-
+```
 ---
 
 ## 🏁 Getting Started
