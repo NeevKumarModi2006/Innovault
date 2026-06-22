@@ -90,14 +90,14 @@ const Register = () => {
             <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-secondary/15 rounded-full blur-[100px] pointer-events-none z-0"></div>
             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none z-0"></div>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: "easeOut" }}
                 className="max-w-md w-full space-y-8 bg-card/60 backdrop-blur-2xl p-10 rounded-3xl border border-border shadow-[0_8px_40px_rgb(0,0,0,0.12)] relative z-10"
             >
                 <div className="flex flex-col items-center">
-                    <motion.div 
+                    <motion.div
                         initial={{ scale: 0.5, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
@@ -121,7 +121,7 @@ const Register = () => {
                 <div className="mt-8 space-y-6">
                     <AnimatePresence>
                         {error && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -131,7 +131,7 @@ const Register = () => {
                             </motion.div>
                         )}
                         {successMsg && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -174,7 +174,7 @@ const Register = () => {
                                     type={showPassword ? "text" : "password"}
                                     required
                                     className="appearance-none block w-full px-12 pr-12 py-3.5 border border-border bg-background/50 rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm disabled:opacity-50"
-                                    placeholder="Password (Min 6 chars)"
+                                    placeholder="Password (Min 8 chars)"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={otpSent}
@@ -190,7 +190,7 @@ const Register = () => {
 
                             <AnimatePresence>
                                 {otpSent && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, height: 0, y: -10 }}
                                         animate={{ opacity: 1, height: 'auto', y: 0 }}
                                         className="relative group"

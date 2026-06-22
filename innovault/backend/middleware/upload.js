@@ -4,20 +4,20 @@
  * Handles file uploads using Multer.
  *
  * When Cloudinary is configured:
- *   - Uses multer-storage-cloudinary to upload directly to Cloudinary
- *   - req.file.filename = Cloudinary public_id (used as DB identifier)
+ * - Uses multer-storage-cloudinary to upload directly to Cloudinary
+ * - req.file.filename = Cloudinary public_id (used as DB identifier)
  *
  * When Cloudinary is NOT configured:
- *   - Falls back to local disk storage in ./uploads/
- *   - req.file.filename = timestamped local filename
+ * - Falls back to local disk storage in ./uploads/
+ * - req.file.filename = timestamped local filename
  *
  * HIGH COHESION: Only handles file upload configuration.
  * LOW COUPLING:  Routes use upload.single('logo') without knowing
- *                whether storage is local or cloud.
+ * whether storage is local or cloud.
  *
  * Constraints:
- *   - Max file size: 5MB
- *   - Allowed types: JPEG, JPG, PNG
+ * - Max file size: 5MB
+ * - Allowed types: JPEG, JPG, PNG
  */
 
 const multer = require('multer');
@@ -28,7 +28,8 @@ let storage;
 
 if (isConfigured) {
     // ── Cloudinary Storage ──────────────────────────────────
-    const { CloudinaryStorage } = require('multer-storage-cloudinary');
+    // FIXED: Changed from destructuring { CloudinaryStorage } to a direct assignment
+    const CloudinaryStorage = require('multer-storage-cloudinary');
 
     storage = new CloudinaryStorage({
         cloudinary: cloudinary,

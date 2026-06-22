@@ -8,18 +8,13 @@
 
 const router = require('express').Router();
 const { Receiver } = require('@upstash/qstash');
-const nodemailer = require('nodemailer');
+const Mailjet = require('node-mailjet');
 
-// Setup Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+// Initialize Mailjet with your credentials via HTTP API
+const mailjet = Mailjet.apiConnect(
+    process.env.MAILJET_API_KEY,
+    process.env.MAILJET_SECRET_KEY
+);
 
 // Initialize the receiver with the signing keys from your dashboard
 const receiver = new Receiver({
@@ -30,7 +25,7 @@ const receiver = new Receiver({
 router.post('/qstash', async (req, res) => {
     try {
         const signature = req.headers['upstash-signature'];
-        
+
         if (!signature) {
             return res.status(400).json({ message: 'Missing Upstash-Signature header' });
         }
@@ -49,31 +44,44 @@ router.post('/qstash', async (req, res) => {
         // The webhook is verified! Now we handle the event.
         const eventData = req.body;
         const eventType = req.headers['x-event-type'] || eventData.eventType;
-        
+
         console.log(`[webhook] Received verified event: ${eventType}`);
 
         if (eventType === 'OTP_REQUESTED') {
             const { email, otpCode, type } = eventData.data;
-            const mailOptions = {
-                from: process.env.FROM_EMAIL || 'no-reply@innovault.com',
-                to: email,
-                subject: `Innovault ${type} OTP`,
-                html: `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                        <h2>Welcome to Innovault!</h2>
-                        <p>Your verification code is:</p>
-                        <h1 style="color: #4CAF50; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
-                        <p>This code will expire in 10 minutes.</p>
-                    </div>
-                `
-            };
-            await transporter.sendMail(mailOptions);
-            console.log(`[webhook] Mail sent successfully to ${email}`);
+
+            // Send via Mailjet HTTP API
+            await mailjet.post('send', { version: 'v3.1' }).request({
+                Messages: [
+                    {
+                        From: {
+                            Email: process.env.FROM_EMAIL || 'no-reply@innovault.com',
+                            Name: 'Innovault'
+                        },
+                        To: [
+                            {
+                                Email: email
+                            }
+                        ],
+                        Subject: `Innovault ${type} OTP`,
+                        HTMLPart: `
+                            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                                <h2>Welcome to Innovault!</h2>
+                                <p>Your verification code is:</p>
+                                <h1 style="color: #4CAF50; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
+                                <p>This code will expire in 10 minutes.</p>
+                            </div>
+                        `
+                    }
+                ]
+            });
+
+            console.log(`[webhook] Mail sent successfully via Mailjet API to ${email}`);
         }
 
         // Acknowledge receipt back to QStash
         res.status(200).json({ received: true });
-        
+
     } catch (err) {
         console.error('[webhook] Error verifying QStash event:', err.message);
         res.status(500).json({ message: 'Webhook processing error', error: err.message });

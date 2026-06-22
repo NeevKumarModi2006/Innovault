@@ -3,21 +3,20 @@ const User = require('../models/User');
 const Otp = require('../models/Otp');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const dns = require('dns');
+const Mailjet = require('node-mailjet');
+
+// Force IPv4 DNS resolution first to prevent ENETUNREACH on Render's IPv6 network
+dns.setDefaultResultOrder('ipv4first');
 
 const validatePassword = require('../middleware/validatePassword');
 const { incrementLoginAttempts, getLoginAttempts, clearLoginAttempts } = require('../services/cacheService');
- 
-// Setup Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+
+// Initialize Mailjet with your credentials via HTTP API
+const mailjet = Mailjet.apiConnect(
+    process.env.MAILJET_API_KEY,
+    process.env.MAILJET_SECRET_KEY
+);
 
 // Send OTP
 router.post('/send-otp', async (req, res) => {
@@ -27,7 +26,7 @@ router.post('/send-otp', async (req, res) => {
 
         // Check user existence
         const emailExist = await User.findOne({ email });
-        
+
         if (type === 'reset') {
             if (!emailExist) return res.status(400).send('Email not registered');
         } else {
@@ -44,22 +43,32 @@ router.post('/send-otp', async (req, res) => {
             { upsert: true, new: true }
         );
 
-        // Send Email Synchronously
-        const mailOptions = {
-            from: process.env.FROM_EMAIL || 'no-reply@innovault.com',
-            to: email,
-            subject: `Innovault ${type === 'reset' ? 'Password Reset' : 'Email Verification'} OTP`,
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                    <h2>Welcome to Innovault!</h2>
-                    <p>Your verification code is:</p>
-                    <h1 style="color: #4CAF50; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
-                    <p>This code will expire in 10 minutes.</p>
-                </div>
-            `
-        };
+        // Send Email via Mailjet HTTP API Request
+        await mailjet.post('send', { version: 'v3.1' }).request({
+            Messages: [
+                {
+                    From: {
+                        Email: process.env.FROM_EMAIL || 'no-reply@innovault.com',
+                        Name: 'Innovault'
+                    },
+                    To: [
+                        {
+                            Email: email
+                        }
+                    ],
+                    Subject: `Innovault ${type === 'reset' ? 'Password Reset' : 'Email Verification'} OTP`,
+                    HTMLPart: `
+                        <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                            <h2>Welcome to Innovault!</h2>
+                            <p>Your verification code is:</p>
+                            <h1 style="color: #4CAF50; font-size: 36px; letter-spacing: 5px;">${otpCode}</h1>
+                            <p>This code will expire in 10 minutes.</p>
+                        </div>
+                    `
+                }
+            ]
+        });
 
-        await transporter.sendMail(mailOptions);
         res.status(200).send({ message: 'OTP sent to email successfully' });
     } catch (err) {
         console.error('Email send error:', err);
@@ -96,10 +105,10 @@ router.post('/register', validatePassword, async (req, res) => {
             email,
             password: hashedPassword,
             role: role
-        }); 
+        });
 
         const savedUser = await user.save();
-        
+
         // Clean up OTP
         await Otp.deleteOne({ email });
 
@@ -194,4 +203,3 @@ router.post('/reset-password', validatePassword, async (req, res) => {
 });
 
 module.exports = router;
- 
