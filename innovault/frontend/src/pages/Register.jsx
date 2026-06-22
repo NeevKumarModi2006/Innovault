@@ -42,7 +42,16 @@ const Register = () => {
         if (!/[a-z]/.test(password)) errors.push('contain a lowercase letter');
         if (!/\d/.test(password)) errors.push('contain a number');
         if (!/[@$!%*?&]/.test(password)) errors.push('contain a special character (@$!%*?&)');
-
+        const lowerPass = password.toLowerCase();
+        if (username && username.length >= 3 && lowerPass.includes(username.toLowerCase())) {
+            return setError('Password cannot contain your username.');
+        }
+        if (email) {
+            const emailPrefix = email.split('@')[0].toLowerCase();
+            if (emailPrefix.length >= 3 && lowerPass.includes(emailPrefix)) {
+                return setError('Password cannot contain your email prefix.');
+            }
+        }
         if (errors.length > 0) {
             return setError(`Password must ${errors.join(' and ')}.`);
         }
@@ -156,6 +165,10 @@ const Register = () => {
                                     disabled={otpSent}
                                 />
                             </div>
+                            <p className="mt-1.5 ml-1 text-xs text-gray-500 flex items-center gap-1.5">
+                                <span className="inline-block w-1 h-1 rounded-full bg-gray-400"></span>
+                                Please choose carefully. Your username cannot be changed later.
+                            </p>
                             <div className="relative group">
                                 <Mail className="absolute top-3.5 left-4 text-muted-foreground w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input

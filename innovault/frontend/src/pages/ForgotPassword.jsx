@@ -11,15 +11,15 @@ const ForgotPassword = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    
+
     const [step, setStep] = useState(1); // 1: Email, 2: OTP & Password
     const [sendingOtp, setSendingOtp] = useState(false);
     const [resetting, setResetting] = useState(false);
     const [timer, setTimer] = useState(0);
-    
+
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
-    
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -67,6 +67,12 @@ const ForgotPassword = () => {
         if (errors.length > 0) {
             return setError(`Password must ${errors.join(' and ')}.`);
         }
+        if (email) {
+            const emailPrefix = email.split('@')[0].toLowerCase();
+            if (emailPrefix.length >= 3 && newPassword.toLowerCase().includes(emailPrefix)) {
+                return setError('Password cannot contain your email prefix.');
+            }
+        }
         if (newPassword !== confirmPassword) {
             return setError('Passwords do not match.');
         }
@@ -92,14 +98,14 @@ const ForgotPassword = () => {
             <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-secondary/15 rounded-full blur-[100px] pointer-events-none z-0"></div>
             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none z-0"></div>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: "easeOut" }}
                 className="max-w-md w-full space-y-8 bg-card/60 backdrop-blur-2xl p-10 rounded-3xl border border-border shadow-[0_8px_40px_rgb(0,0,0,0.12)] relative z-10"
             >
                 <div className="flex flex-col items-center">
-                    <motion.div 
+                    <motion.div
                         initial={{ scale: 0.5, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
@@ -121,7 +127,7 @@ const ForgotPassword = () => {
                 <div className="mt-8 space-y-6">
                     <AnimatePresence>
                         {error && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -131,7 +137,7 @@ const ForgotPassword = () => {
                             </motion.div>
                         )}
                         {successMsg && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
@@ -141,12 +147,12 @@ const ForgotPassword = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                    
+
                     {step === 1 ? (
-                        <motion.form 
+                        <motion.form
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="space-y-6" 
+                            className="space-y-6"
                             onSubmit={handleSendOtp}
                         >
                             <div className="space-y-4">
@@ -175,10 +181,10 @@ const ForgotPassword = () => {
                             </motion.button>
                         </motion.form>
                     ) : (
-                        <motion.form 
+                        <motion.form
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="space-y-6" 
+                            className="space-y-6"
                             onSubmit={handleResetPassword}
                         >
                             <div className="space-y-4">
@@ -193,8 +199,8 @@ const ForgotPassword = () => {
                                         onChange={(e) => setOtp(e.target.value)}
                                     />
                                     <div className="absolute top-2 right-2">
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={handleSendOtp}
                                             disabled={timer > 0 || sendingOtp}
                                             className="px-3 py-1.5 bg-muted text-xs font-semibold text-foreground rounded-lg border border-border hover:bg-background disabled:opacity-50 transition-colors shadow-sm"
